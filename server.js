@@ -20,12 +20,13 @@ app.post("/api/login", async (req, res) => {
 
   try {
     // Check if the user exists
-    const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1 AND archive = 'N';",
-      [email]
-    );
+    const result = await pool.query("SELECT * FROM users WHERE email = $1;", [
+      email,
+    ]);
     if (result.rows.length === 0) {
       return res.status(401).json({ error: "Email not found" });
+    } else if (result.archive === true) {
+      return res.status(401).json({ error: "Account is deactivated" });
     }
 
     const user = result.rows[0];
@@ -48,17 +49,18 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Get a single user by ID
+// Get a single user by email
 app.get("/api/users/:email", async (req, res) => {
-  const { email } = req.params; // Extract the user ID from the URL
+  const { email } = req.params;
   try {
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
+    const result = await pool.query(
+      "SELECT * FROM users WHERE email = $1 and archive = false;",
+      [email]
+    );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
-    res.json(result.rows[0]); // Return the user object
+    res.json(result.rows[0]);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
@@ -66,32 +68,23 @@ app.get("/api/users/:email", async (req, res) => {
 });
 
 app.post("/api/register", async (req, res) => {
-  const {
-    email,
-    password
-  } = req.body;
+  const { email, password } = req.body;
 
   try {
-    // Check if the email is already in use
     const userExists = await pool.query(
-      "SELECT * FROM users WHERE email = $1 and archive = 'N';",
+      "SELECT * FROM users WHERE email = $1 and archive = false;",
       [email]
     );
     if (userExists.rows.length > 0) {
       return res.status(400).json({ error: "Email is already registered" });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Save the user to the database
-    await pool.query(
-      "INSERT INTO users (email, password ) VALUES ($1, $2)",
-      [
-        email,
-        hashedPassword,
-      ]
-    );
+    await pool.query("INSERT INTO users (email, password ) VALUES ($1, $2)", [
+      email,
+      hashedPassword,
+    ]);
 
     res.json({ message: "User registered successfully" });
   } catch (err) {
@@ -100,7 +93,6 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
