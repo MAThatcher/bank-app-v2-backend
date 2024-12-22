@@ -44,19 +44,18 @@ app.post("/api/token", (req, res) => {
       return res.status(401).json({ error: "Refresh token required" });
     }
   
-    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
+    jwt.verify(refreshToken, JWT_REFRESH_SECRET, (err, user) => {
       if (err) {
         return res.status(403).json({ error: "Invalid or expired refresh token" });
       }
   
-      const newAccessToken = generateAccessToken({ id: user.id, email: user.email });
+      const newAccessToken = generateAccessToken({ user });
       res.json({ accessToken: newAccessToken });
     });
   });
   
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log(JWT_SECRET);
   try {
     const result = await pool.query("SELECT email,password,super_user,archive FROM users WHERE email = $1;", [ email ]);
     if (result.rows.length === 0) { return res.status(401).json({ error: "Email not found" }); } 
@@ -68,13 +67,29 @@ app.post("/api/login", async (req, res) => {
 
     const accessToken = generateAccessToken({ user });
     const refreshToken = generateRefreshToken({ user });
-
     res.json({ accessToken, refreshToken, message: "Login Successful" });
 
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
   }
+});
+
+app.get('/dashboard', authenticateToken, (req, res) => {
+  const dashboardData = {
+      user: req.user,
+      stats: {
+          totalUsers: 1200,
+          activeUsers: 890,
+          newSignups: 34,
+      },
+      notifications: [
+          { id: 1, message: 'Welcome to the platform!', type: 'info' },
+          { id: 2, message: 'Your profile is 80% complete.', type: 'warning' },
+      ],
+  };
+
+  res.json(dashboardData);
 });
 
 // Get a single user by email
