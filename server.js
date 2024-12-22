@@ -4,20 +4,19 @@ const cors = require("cors");
 const pool = require("./db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
+require('dotenv').config();
 const app = express();
 
-// Middleware
 app.use(bodyParser.json());
 app.use(cors());
 
-// Secret key for JWT
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = `${process.env.JWT_SECRET}`;
+const JWT_REFRESH_SECRET = `${process.env.JWT_REFRESH_SECRET}`;
 const generateAccessToken = (user) => {
-  return jwt.sign(user, process.env.JWT_SECRET, { expiresIn: "15m" });
+  return jwt.sign(user, JWT_SECRET, { expiresIn: "15m" });
 };
 const generateRefreshToken = (user) => {
-  return jwt.sign(user, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
+  return jwt.sign(user, JWT_REFRESH_SECRET, { expiresIn: "7d" });
 };
 const authenticateToken = (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
@@ -38,13 +37,28 @@ const authenticateToken = (req, res, next) => {
     }
   );
 };
-
-// Login API Endpoint
+app.post("/api/token", (req, res) => {
+    const { refreshToken } = req.body;
+  
+    if (!refreshToken) {
+      return res.status(401).json({ error: "Refresh token required" });
+    }
+  
+    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
+      if (err) {
+        return res.status(403).json({ error: "Invalid or expired refresh token" });
+      }
+  
+      const newAccessToken = generateAccessToken({ id: user.id, email: user.email });
+      res.json({ accessToken: newAccessToken });
+    });
+  });
+  
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
-
+  console.log(JWT_SECRET);
   try {
-    const result = await pool.query("SELECT * FROM users WHERE email = $1;", [ email ]);
+    const result = await pool.query("SELECT email,password,super_user,archive FROM users WHERE email = $1;", [ email ]);
     if (result.rows.length === 0) { return res.status(401).json({ error: "Email not found" }); } 
     else if (result.archive === true) { return res.status(401).json({ error: "Account is deactivated" }); }
 
@@ -52,11 +66,11 @@ app.post("/api/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) { return res.status(401).json({ error: "Invalid password" }); }
 
-    const accessToken = generateAccessToken({ id: result.rows[0].id, email: result.rows[0].email });
-    const refreshToken = generateRefreshToken({ id: result.rows[0].id, email: result.rows[0].email });
+    const accessToken = generateAccessToken({ user });
+    const refreshToken = generateRefreshToken({ user });
 
     res.json({ accessToken, refreshToken, message: "Login Successful" });
-    
+
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
