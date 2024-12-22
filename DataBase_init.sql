@@ -8,10 +8,11 @@ create table if not exists users (
 	id serial primary key,
 	email varchar(255) unique null,
 	password varchar(255) not null,
-	archive boolean default false,
+	archived boolean default false,
 	create_date timestamp default current_timestamp,
 	update_date timestamp default current_timestamp,
-	super_user boolean default false
+	super_user boolean default false,
+	archived_email varchar(255) default null
 );
 create table if not exists user_details (
 	id serial primary key,
