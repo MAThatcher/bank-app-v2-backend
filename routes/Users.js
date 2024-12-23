@@ -30,7 +30,7 @@ router.delete("/:email", authenticateToken, async (req, res) => {
       req.user = user;
     });
     if (valid) {
-      const to_delete = await pool.query(
+      await pool.query(
         "UPDATE users SET email = NULL,archived = true,archived_email = $1,super_user = false, password = 'DELETED', update_date = current_timestamp where email = $2;",
         [email, email]
       );

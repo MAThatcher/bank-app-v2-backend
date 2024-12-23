@@ -1,7 +1,11 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const app = express();
+let corsOption = {
+  origin: 'trustedwebsite.com'
+}
+let app = express();
+app.use(cors(corsOptions));
 
 app.use(bodyParser.json());
 app.use(cors());

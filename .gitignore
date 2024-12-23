@@ -23,3 +23,5 @@ yarn-error.log*
 
 db.js
 .env
+.vscode
+connectedMode.json
