@@ -2,13 +2,14 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 let corsOption = {
-  origin: 'trustedwebsite.com'
-}
+  origin: "trustedwebsite.com",
+};
 let app = express();
 app.use(cors(corsOption));
 
 app.use(bodyParser.json());
 app.use(cors());
+app.disable("x-powered-by");
 
 const dashboardRoutes = require("./routes/Dashboard");
 const userRoutes = require("./routes/Users");
