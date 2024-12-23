@@ -5,7 +5,7 @@ let corsOption = {
   origin: 'trustedwebsite.com'
 }
 let app = express();
-app.use(cors(corsOptions));
+app.use(cors(corsOption));
 
 app.use(bodyParser.json());
 app.use(cors());
