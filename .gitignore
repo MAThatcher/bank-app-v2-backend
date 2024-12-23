@@ -25,3 +25,4 @@ db.js
 .env
 .vscode
 connectedMode.json
+.sonarlint
