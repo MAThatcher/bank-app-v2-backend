@@ -32,6 +32,33 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
+//get single bank account
+router.get("/:accountId", authenticateToken, async (req, res) => {
+  const { accountId } = req.params;
+  try {
+    const token = req.headers["authorization"]?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ error: "Access token required" });
+    }
+    jwt.verify(token, `${process.env.JWT_SECRET}`, (err, user) => {
+      req.user = user;
+    });
+    let userId = req.user.user.id;
+    //verify account exists
+    //verify user has access to the account
+    let validUser = await pool.query("select * from account_users where account_id = $1",[userId]);
+    if (validUser.rows.length === 0 ){
+        return res.status(404).json({ error: "Account does not exist or user is not authorized"});
+    }
+
+    //return the desired account
+    return res.json(await pool.query("select * from accounts where account_id = $1",[accountId]));
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
 //create bank account
 router.post("/", authenticateToken, async (req, res) => {
   const { accountName } = req.body;

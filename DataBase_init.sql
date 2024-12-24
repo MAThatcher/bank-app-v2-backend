@@ -2,6 +2,7 @@ drop table if exists user_details;
 drop table if exists account_users;
 drop table if exists transactions;
 drop table if exists accounts;
+drop table if exists notifications;
 drop table if exists users;
 
 create table if not exists users (
@@ -67,8 +68,13 @@ create table if not exists account_users(
 	constraint fk_users foreign key (user_id)
 	references users(id)
 );
-select * from users;
-select * from accounts;
-select * from account_users;
-update account_users set archived = false;
-update accounts set archived = false;
+create table if not exists notifications(
+	id serial primary key,
+	message varchar(1020) not null,
+	create_date timestamp default current_timestamp,
+	update_date timestamp default current_timestamp,
+	user_id int not null,
+	dismissed boolean default false,
+	constraint fk_users foreign key (user_id)
+	references users(id)
+);

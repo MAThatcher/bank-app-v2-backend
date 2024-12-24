@@ -11,7 +11,6 @@ router.delete("/:email", authenticateToken, async (req, res) => {
   const { email } = req.params;
   try {
     const token = req.headers["authorization"]?.split(" ")[1];
-
     if (!token) {
       return res.status(401).json({ error: "Access token required" });
     }
@@ -25,13 +24,16 @@ router.delete("/:email", authenticateToken, async (req, res) => {
       req.user = user;
     });
     if (valid) {
+      await pool.query("BEGIN");
       await pool.query(
         "UPDATE users SET email = NULL,archived = true,archived_email = $1,super_user = false, password = 'DELETED', update_date = current_timestamp where email = $2;",
         [email, email]
       );
+      await pool.query("COMMIT");
       res.json({ message: "User Deleted Successfully" });
     }
   } catch (err) {
+    await pool.query("ROLLBACK");
     console.error(err.message);
     res.status(500).send("Server Error");
   }
@@ -96,14 +98,12 @@ router.post("/register", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    await pool.query("INSERT INTO users (email, password ) VALUES ($1, $2)", [
-      email,
-      hashedPassword,
-    ]);
-
+    await pool.query("BEGIN");
+    await pool.query("INSERT INTO users (email, password ) VALUES ($1, $2)", [ email, hashedPassword ]);
+    await pool.query("COMMIT");
     res.json({ message: "User registered successfully" });
   } catch (err) {
+    await pool.query("ROLLBACK");
     console.error(err.message);
     res.status(500).send("Server Error");
   }

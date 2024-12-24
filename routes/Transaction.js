@@ -53,7 +53,7 @@ router.post("/", authenticateToken, async (req, res) => {
     if (!overdraft && balance + transactionAmount < 0) {
       return res.status(401).json({ error: "Overdraft not allowed on this account. Balance cannot be less than 0" });
     }
-
+    
     //insert transaction into db and update bank balance
     await pool.query("BEGIN");
     await pool.query( "insert into transactions (amount,user_id,account_id) values ($1, $2, $3);", [transactionAmount, userId, accountId] );
