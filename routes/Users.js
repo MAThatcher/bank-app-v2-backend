@@ -4,12 +4,9 @@ const pool = require("../db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const {
-  generateAccessToken,
-  generateRefreshToken,
-  authenticateToken,
-} = require("../services/AuthService");
+const { generateAccessToken, generateRefreshToken, authenticateToken } = require("../services/AuthService");
 
+//delete user
 router.delete("/:email", authenticateToken, async (req, res) => {
   const { email } = req.params;
   try {
@@ -40,6 +37,7 @@ router.delete("/:email", authenticateToken, async (req, res) => {
   }
 });
 
+//get user details
 router.get("/:email", authenticateToken, async (req, res) => {
   const { email } = req.params;
   try {
@@ -57,6 +55,7 @@ router.get("/:email", authenticateToken, async (req, res) => {
   }
 });
 
+//login
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -83,6 +82,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
+//register new user
 router.post("/register", async (req, res) => {
   const { email, password } = req.body;
 

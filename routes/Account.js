@@ -4,6 +4,7 @@ const { authenticateToken } = require("../services/AuthService");
 const pool = require("../db");
 const jwt = require("jsonwebtoken");
 
+//get all bank accounts for a user
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const token = req.headers["authorization"]?.split(" ")[1];
@@ -14,10 +15,13 @@ router.get("/", authenticateToken, async (req, res) => {
     jwt.verify(token, `${process.env.JWT_SECRET}`, (err, user) => {
       req.user = user;
     });
+    let email = req.user.user.email;
+    console.log(email);
     const result = await pool.query(
-      `select a.id, a.name,a.balance from users u join account_users au on au.account_id = u.id join accounts a on a.id = au.user_id where u.email = $1 and a.archived = false;`,
-      [req.user.user.email]
+      `select a.id, a.name,a.balance from users u join account_users au on au.user_id = u.id join accounts a on a.id = au.account_id where u.email = $1 and a.archived = false;`,
+      [email]
     );
+    console.log(result);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "No bank accounts found" });
     }
@@ -28,6 +32,7 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
+//create bank account
 router.post("/", authenticateToken, async (req, res) => {
   const { accountName } = req.body;
   try {
@@ -60,6 +65,7 @@ router.post("/", authenticateToken, async (req, res) => {
   }
 });
 
+//delete bank account
 router.delete("/", authenticateToken, async (req, res) => {
   const { accountId } = req.body;
   try {
