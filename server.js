@@ -11,16 +11,20 @@ app.disable("x-powered-by");
 const dashboardRoutes = require("./routes/Dashboard");
 const userRoutes = require("./routes/Users");
 const authRoutes = require("./routes/Auth");
+const accountRoutes = require("./routes/Account");
 
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/account", accountRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}

@@ -32,10 +32,12 @@ create table if not exists user_details (
 );
 create table if not exists accounts(
 	id serial primary key,
+	name varchar(255) default 'Account',
 	create_date timestamp default current_timestamp,
 	update_date timestamp default current_timestamp,
 	owner int,
 	balance numeric(13,2) default 0,
+	overdraft boolean default false,
 	constraint fk_users foreign key (owner)
 	references users(id)
 );

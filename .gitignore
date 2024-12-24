@@ -26,3 +26,4 @@ db.js
 .vscode
 connectedMode.json
 .sonarlint
+.babelrc
