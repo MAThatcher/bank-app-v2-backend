@@ -12,11 +12,13 @@ const dashboardRoutes = require("./routes/Dashboard");
 const userRoutes = require("./routes/Users");
 const authRoutes = require("./routes/Auth");
 const accountRoutes = require("./routes/Account");
+const transactionRoutes = require("./routes/Transaction");
 
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/account", accountRoutes);
+app.use("/api/transaction", transactionRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");

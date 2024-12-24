@@ -38,6 +38,7 @@ create table if not exists accounts(
 	owner int,
 	balance numeric(13,2) default 0,
 	overdraft boolean default false,
+	archived boolean default false,
 	constraint fk_users foreign key (owner)
 	references users(id)
 );
@@ -45,10 +46,14 @@ create table if not exists transactions(
 	id serial primary key,
 	create_date timestamp default current_timestamp,
 	update_date timestamp default current_timestamp,
-	account_id int,
+	account_id int not null,
+	user_id int not null,
 	amount numeric(13,2) not null,
+	archived boolean default false,
 	constraint fk_accounts foreign key (account_id)
-	references accounts(id)
+	references accounts(id),
+	constraint fk_users foreign key (user_id)
+	references users(id)
 );
 create table if not exists account_users(
 	id serial primary key,
@@ -56,8 +61,14 @@ create table if not exists account_users(
 	update_date timestamp default current_timestamp,
 	user_id int,
 	account_id int,
+	archived boolean default false,
 	constraint fk_accounts foreign key (account_id)
 	references accounts(id),
 	constraint fk_users foreign key (user_id)
 	references users(id)
 );
+select * from users;
+select * from accounts;
+select * from account_users;
+update account_users set archived = false;
+update accounts set archived = false;

@@ -23,9 +23,7 @@ router.delete("/:email", authenticateToken, async (req, res) => {
       if (user.user.email === email) {
         valid = true;
       } else {
-        return res
-          .status(401)
-          .json({ error: "Unauthorized. Not your account." });
+        return res.status(401).json({ error: "Unauthorized. Not your account." });
       }
       req.user = user;
     });
@@ -63,7 +61,7 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
     const result = await pool.query(
-      "SELECT email,password,super_user FROM users WHERE email = $1;",
+      "SELECT id, email, password, super_user FROM users WHERE email = $1;",
       [email]
     );
     if (result.rows.length === 0) {

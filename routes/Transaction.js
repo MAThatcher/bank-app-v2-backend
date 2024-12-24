@@ -4,22 +4,14 @@ const { authenticateToken } = require("../services/AuthService");
 const pool = require("../db");
 const jwt = require("jsonwebtoken");
 
-router.get("/", authenticateToken, async (req, res) => {
+router.get("/:accountId", authenticateToken, async (req, res) => {
+    const { accountId } = req.params;
   try {
-    const token = req.headers["authorization"]?.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ error: "Access token required" });
-    }
-    jwt.verify(token, `${process.env.JWT_SECRET}`, (err, user) => {
-      req.user = user;
-    });
     const result = await pool.query(
-      `select a.id, a.name,a.balance from users u join account_users au on au.account_id = u.id join accounts a on a.id = au.user_id where u.email = $1 and a.archived = false;`,
-      [req.user.user.email]
+      `select * from transactions where accountId = $1`,[accountId]
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "No bank accounts found" });
+      return res.status(404).json({ error: "No transactions accounts found" });
     }
     res.json(result.rows);
   } catch (err) {
@@ -29,7 +21,7 @@ router.get("/", authenticateToken, async (req, res) => {
 });
 
 router.post("/", authenticateToken, async (req, res) => {
-  const { accountName } = req.body;
+  const { transactionAmount, accountId } = req.body;
   try {
     jwt.verify(
       req.headers["authorization"]?.split(" ")[1],
@@ -38,21 +30,18 @@ router.post("/", authenticateToken, async (req, res) => {
         req.user = user;
       }
     );
-    await pool.query("BEGIN");
     let userId = req.user.user.id;
-    const result = await pool.query(
-      "insert into accounts (name,owner) values ($1,$2) returning id;",
-      [accountName, userId]
-    );
-    const accountId = result.rows[0].id;
-    await pool.query(
-      "INSERT INTO account_users (account_id, user_id) VALUES ($1, $2);",
-      [accountId, userId]
-    );
+
+    await pool.query("BEGIN");
+    await pool.query( "insert into transaction (amount,user_id,account_id) values ($1, $2, $3);", [transactionAmount, userId, accountId]);
+    let newAmount = await pool.query("Select balance from accounts where id = $1",[accountId]);
+    newAmount = newAmount.rows[0].balance + transactionAmount;
+    console.log(newAmount);
+    await pool.query( "update accounts set balance = $1 where id = $2;", [newAmount, accountId]);
     await pool.query("COMMIT");
     return res
       .status(201)
-      .json({ message: "Account created successfully", accountId });
+      .json({ message: "Transaction Logged successfully"});
   } catch (error) {
     await pool.query("ROLLBACK");
     console.error(error);
@@ -71,11 +60,10 @@ router.delete("/", authenticateToken, async (req, res) => {
     jwt.verify(token, `${process.env.JWT_SECRET}`, (err, user) => {
       req.user = user;
     });
-    let email = req.user.user.email;
     await pool.query("BEGIN");
     const result = await pool.query(
       `select a.id, a.name,a.balance from users u join account_users au on au.account_id = u.id join accounts a on a.id = au.user_id where u.email = $1 and a.id = $2;`,
-      [email, accountId]
+      [req.user.user.email, accountId]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Bank Account not found" });
@@ -86,9 +74,14 @@ router.delete("/", authenticateToken, async (req, res) => {
         .json({ error: "Bank Balance must be 0 to delete." });
     }
 
-    await pool.query( `update account_users set archived = true, update_date = current_timestamp where account_id = $1`, [accountId] );
-    await pool.query( `update accounts set archived = true, update_date = current_timestamp where id = $1`, [accountId] );
-    await pool.query( `update transactions set archived = true, update_date = current_timestamp where account_id = $1`, [accountId] );
+    await pool.query(
+      `update account_users set archived = true,update_date = current_timestamp where account_id = $1`,
+      [accountId]
+    );
+    await pool.query(
+      `update accounts set archived = true,update_date = current_timestamp where id = $1`,
+      [accountId]
+    );
     await pool.query("COMMIT");
     res.json({ message: "Account Deleted Successfully" });
   } catch (err) {
