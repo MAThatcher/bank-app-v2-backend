@@ -10,20 +10,7 @@ const { generateAccessToken, generateRefreshToken, authenticateToken } = require
 router.delete("/:email", authenticateToken, async (req, res) => {
   const { email } = req.params;
   try {
-    const token = req.headers["authorization"]?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ error: "Access token required" });
-    }
-    let valid = false;
-    jwt.verify(token, `${process.env.JWT_SECRET}`, (err, user) => {
-      if (user.user.email === email) {
-        valid = true;
-      } else {
-        return res.status(401).json({ error: "Unauthorized. Not your account." });
-      }
-      req.user = user;
-    });
-    if (valid) {
+    if (req.user.user.email === email) {
       await pool.query("BEGIN");
       await pool.query(
         "UPDATE users SET email = NULL,archived = true,archived_email = $1,super_user = false, password = 'DELETED', update_date = current_timestamp where email = $2;",
@@ -40,12 +27,11 @@ router.delete("/:email", authenticateToken, async (req, res) => {
 });
 
 //get user details
-router.get("/:email", authenticateToken, async (req, res) => {
-  const { email } = req.params;
+router.get("/", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id,email,create_date,update_date,super_user FROM users WHERE email = $1;",
-      [email]
+      "SELECT id,email,create_date,update_date,super_user FROM users WHERE email = $1 and archived = false;",
+      [req.user.user.email]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });

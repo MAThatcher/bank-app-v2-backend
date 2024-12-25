@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { authenticateToken } = require("../services/AuthService");
+const { authenticateToken, getTokenData } = require("../services/AuthService");
 const pool = require("../db");
 const jwt = require("jsonwebtoken");
 
@@ -8,11 +8,6 @@ const jwt = require("jsonwebtoken");
 router.get("/:accountId", authenticateToken, async (req, res) => {
   const { accountId } = req.params;
   try {
-    jwt.verify(
-      req.headers["authorization"]?.split(" ")[1], `${process.env.JWT_SECRET}`, (err, user) => {
-        req.user = user;
-      }
-    );
     let userId = req.user.user.id;
     let validUser = await pool.query( "select id from account_users where user_id = $1 and account_id = $2 and archived = false", [userId, accountId] );
     if (validUser.rows.length === 0) { 
@@ -33,11 +28,6 @@ router.get("/:accountId", authenticateToken, async (req, res) => {
 router.post("/", authenticateToken, async (req, res) => {
   const { transactionAmount, accountId } = req.body;
   try {
-    jwt.verify(
-        req.headers["authorization"]?.split(" ")[1], `${process.env.JWT_SECRET}`, (err, user) => {
-          req.user = user;
-        }
-      );
     let userId = req.user.user.id;
 
     //verify that this user has authority to make this depost
@@ -53,7 +43,7 @@ router.post("/", authenticateToken, async (req, res) => {
     if (!overdraft && balance + transactionAmount < 0) {
       return res.status(401).json({ error: "Overdraft not allowed on this account. Balance cannot be less than 0" });
     }
-    
+
     //insert transaction into db and update bank balance
     await pool.query("BEGIN");
     await pool.query( "insert into transactions (amount,user_id,account_id) values ($1, $2, $3);", [transactionAmount, userId, accountId] );

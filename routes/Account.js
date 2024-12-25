@@ -36,17 +36,9 @@ router.get("/", authenticateToken, async (req, res) => {
 router.get("/:accountId", authenticateToken, async (req, res) => {
   const { accountId } = req.params;
   try {
-    const token = req.headers["authorization"]?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ error: "Access token required" });
-    }
-    jwt.verify(token, `${process.env.JWT_SECRET}`, (err, user) => {
-      req.user = user;
-    });
     let userId = req.user.user.id;
-    //verify account exists
-    //verify user has access to the account
-    let validUser = await pool.query("select * from account_users where account_id = $1",[userId]);
+    
+    let validUser = await pool.query("select * from account_users where account_id = $1 and archived = false",[userId]);
     if (validUser.rows.length === 0 ){
         return res.status(404).json({ error: "Account does not exist or user is not authorized"});
     }
@@ -63,13 +55,6 @@ router.get("/:accountId", authenticateToken, async (req, res) => {
 router.post("/", authenticateToken, async (req, res) => {
   const { accountName } = req.body;
   try {
-    jwt.verify(
-      req.headers["authorization"]?.split(" ")[1],
-      `${process.env.JWT_SECRET}`,
-      (err, user) => {
-        req.user = user;
-      }
-    );
     let userId = req.user.user.id;
     await pool.query("BEGIN");
     const result = await pool.query("insert into accounts (name,owner) values ($1,$2) returning id;",[accountName, userId]);
@@ -88,14 +73,6 @@ router.post("/", authenticateToken, async (req, res) => {
 router.delete("/", authenticateToken, async (req, res) => {
   const { accountId } = req.body;
   try {
-    const token = req.headers["authorization"]?.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ error: "Access token required" });
-    }
-    jwt.verify(token, `${process.env.JWT_SECRET}`, (err, user) => {
-      req.user = user;
-    });
     let userId = req.user.user.id;
 
     //does the bank account thats being deleted exist? Is the user the owner of the account? Is the balance on the acccount zero?
@@ -127,13 +104,6 @@ router.delete("/", authenticateToken, async (req, res) => {
 router.post("/addUser", authenticateToken, async (req, res) => {
     const { accountId, email } = req.body;
     try {
-      jwt.verify(
-        req.headers["authorization"]?.split(" ")[1],
-        `${process.env.JWT_SECRET}`,
-        (err, user) => {
-          req.user = user;
-        }
-      );
       let userId = req.user.user.id;
 
       //Can this user add to this account? Only owners can add to an account
