@@ -2,19 +2,10 @@ const express = require("express");
 const router = express.Router();
 const { authenticateToken } = require("../services/AuthService");
 const pool = require("../db");
-const jwt = require("jsonwebtoken");
 
 //get all bank accounts for a user
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const token = req.headers["authorization"]?.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ error: "Access token required" });
-    }
-    jwt.verify(token, `${process.env.JWT_SECRET}`, (err, user) => {
-      req.user = user;
-    });
     let email = req.user.user.email;
     console.log(email);
     const result = await pool.query(

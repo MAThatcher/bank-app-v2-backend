@@ -13,12 +13,14 @@ const userRoutes = require("./routes/Users");
 const authRoutes = require("./routes/Auth");
 const accountRoutes = require("./routes/Account");
 const transactionRoutes = require("./routes/Transaction");
+const notificationRoutes = require("./routes/Notification");
 
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/account", accountRoutes);
 app.use("/api/transaction", transactionRoutes);
+app.use("/api/notification", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");
