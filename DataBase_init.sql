@@ -17,19 +17,18 @@ create table if not exists users (
 );
 create table if not exists user_details (
 	id serial primary key,
-	fname varchar(255) null default 'John',
+	fname varchar(255) null,
 	mname varchar(255) null,
-	lname varchar(255) null default 'Doe',
+	lname varchar(255) null,
 	address_street varchar(255) null,
 	address_city varchar(255) null,
 	address_state CHAR(2) null,
 	address_zip numeric(5,0) null,
 	create_date timestamp default current_timestamp,
 	update_date timestamp default current_timestamp,
-	user_id int,
+	user_id int not null,
 	CONSTRAINT fk_users FOREIGN KEY (user_id)
 	REFERENCES users(id)
-
 );
 create table if not exists accounts(
 	id serial primary key,

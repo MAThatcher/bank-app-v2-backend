@@ -126,4 +126,36 @@ router.post("/addUser", authenticateToken, async (req, res) => {
       return res.status(500).json({ error: "Error adding user" });
     }
   });
+
+
+//transfer account ownership
+router.post("/transferOwnership", authenticateToken, async (req, res) => {
+  const { accountId, email } = req.body;
+  try {
+    let userId = req.user.user.id;
+
+    //is the logged in user the owner of this account whos ownership is transferring?
+    const result = await pool.query("select * from accounts where owner = $1 and archived = false and id = $2",[userId,accountId]);
+    if (result.rows.length === 0 ){
+      return res.status(401).json({message:"Unauthorized: Must be accounts owner change ownership"});
+    }
+
+    //The user they want to give ownership must exists and have access to this account
+    let accountUser = await pool.query("Select u.id from account_users au join users u on u.id = au.user_id where au.account_id = $1 and u.email = $2 and u.archived = false",[accountId,email]);
+    if (!accountUser.rows.length === 0 ){
+      return res.status(404).json({message: "User to add must have access to this account to become its owner"});
+    }
+
+    //Give the user access
+    await pool.query("BEGIN");
+    await pool.query( "update accounts set owner = $1 where id = $2;", [accountUser.rows[0].id,accountId] );
+    await pool.query("COMMIT");
+    return res.status(201).json({ message: "User owner changed successfully", accountId });
+  } catch (error) {
+    await pool.query("ROLLBACK");
+    console.error(error);
+    return res.status(500).json({ error: "Error changing owner" });
+  }
+});
+
 module.exports = router;

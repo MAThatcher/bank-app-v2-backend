@@ -9,7 +9,7 @@ router.get("/", authenticateToken, async (req, res) => {
     let userId = req.user.user.id;
     console.log(email);
     const result = await pool.query(
-      `select * from notifications where user_id = $1`,
+      `select * from notifications where user_id = $1 order by create_date`,
       [userId]
     );
     if (result.rows.length === 0) {
