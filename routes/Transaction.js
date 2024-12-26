@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { authenticateToken, getTokenData } = require("../services/AuthService");
+const { authenticateToken } = require("../services/AuthService");
 const pool = require("../db");
-const jwt = require("jsonwebtoken");
 
 //get transactions for an account
 router.get("/:accountId", authenticateToken, async (req, res) => {
