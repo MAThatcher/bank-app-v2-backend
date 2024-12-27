@@ -13,7 +13,8 @@ create table if not exists users (
 	create_date timestamp default current_timestamp,
 	update_date timestamp default current_timestamp,
 	super_user boolean default false,
-	archived_email varchar(255) default null
+	archived_email varchar(255) default null,
+	verified boolean default false
 );
 create table if not exists user_details (
 	id serial primary key,
@@ -39,6 +40,7 @@ create table if not exists accounts(
 	balance numeric(13,2) default 0,
 	overdraft boolean default false,
 	archived boolean default false,
+	type varchar(255),
 	constraint fk_users foreign key (owner)
 	references users(id)
 );
