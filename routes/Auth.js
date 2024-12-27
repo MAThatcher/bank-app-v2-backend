@@ -56,7 +56,6 @@ router.post("/reset-password", async (req, res) => {
       return res.status(400).json({ message: "Invalid token" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    console.log(hashedPassword);
     await pool.query("BEGIN");
     await pool.query("update users set password = $1 where id = $2",[hashedPassword,decoded.id]);
     await pool.query("COMMIT");
