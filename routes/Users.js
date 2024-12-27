@@ -4,6 +4,8 @@ const pool = require("../db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const { sendVerificationEmail } = require("../services/NodeMailer");
+
 const { generateAccessToken, generateRefreshToken, authenticateToken } = require("../services/AuthService");
 
 //delete user
@@ -48,7 +50,7 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
     const result = await pool.query(
-      "SELECT id, email, password, super_user FROM users WHERE email = $1;",
+      "SELECT id, email, password, super_user FROM users WHERE email = $1 and verified = true;",
       [email]
     );
     if (result.rows.length === 0) {
@@ -82,18 +84,38 @@ router.post("/register", async (req, res) => {
     if (userExists.rows.length > 0) {
       return res.status(400).json({ error: "Email is already registered" });
     }
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await pool.query("BEGIN");
+    await sendVerificationEmail(email, token);
     let newUserId = await pool.query("INSERT INTO users (email, password ) VALUES ($1, $2) returning id;", [ email, hashedPassword ]);
     await pool.query("insert into user_details (user_id) values ($1)",[newUserId.rows[0].id]);
     await pool.query("COMMIT");
-    res.json({ message: "User registered successfully" });
+    return res.status(200).json({ message: "Verification email sent. Please check your inbox." });
   } catch (err) {
     await pool.query("ROLLBACK");
-    console.error(err.message);
-    res.status(500).send("Server Error");
+    console.error("Error sending email:", err);
+    res.status(500).json({ message: "Error sending email" });
   }
 });
+
+router.get("/verify-email/:token", async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { email } = decoded;
+
+    await pool.query("BEGIN");
+    await pool.query("update users set verified = true where email = $1;", [ email, ]);
+    await pool.query("COMMIT");
+    return res.status(200).json({ message: "Email successfully verified." });
+  } catch (error) {
+    await pool.query("ROLLBACK");
+    return res.status(400).json({ message: "Invalid or expired token." });
+  }
+});
+
 
 module.exports = router;

@@ -13,13 +13,10 @@ router.get("/:accountId", authenticateToken, async (req, res) => {
         return res .status(404) .json({ error: "No Authorized Accounts for this User" });
     }
     const result = await pool.query( `select * from transactions where account_id = $1 and archived = false order by id desc`, [accountId] );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "No transactions or accounts found" });
-    }
-    res.json(result.rows);
+    return res.json(result.rows);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    return res.status(500).send("Server Error");
   }
 });
 

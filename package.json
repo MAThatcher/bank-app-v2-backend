@@ -17,6 +17,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.16",
     "pg": "^8.13.1"
   },
   "devDependencies": {
@@ -33,6 +34,8 @@
       "^.+\\.js$": "babel-jest"
     },
     "testEnvironment": "node",
-    "transformIgnorePatterns": ["/node_modules/(?!(chai-http)/)"]
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(chai-http)/)"
+    ]
   }
 }

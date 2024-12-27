@@ -11,9 +11,6 @@ router.get("/", authenticateToken, async (req, res) => {
       `select a.id, a.name,a.balance from users u join account_users au on au.user_id = u.id join accounts a on a.id = au.account_id where u.email = $1 and a.archived = false;`,
       [email]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "No bank accounts found" });
-    }
     res.json(result.rows);
   } catch (err) {
     console.error(err.message);
@@ -125,7 +122,6 @@ router.post("/addUser", authenticateToken, async (req, res) => {
       return res.status(500).json({ error: "Error adding user" });
     }
   });
-
 
 //transfer account ownership
 router.post("/transferOwnership", authenticateToken, async (req, res) => {
