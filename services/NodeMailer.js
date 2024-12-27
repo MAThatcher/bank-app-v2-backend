@@ -1,7 +1,6 @@
 const nodemailer = require("nodemailer");
 
-const sendVerificationEmail = async (email, token) => {
-  const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({
     service: "Gmail",
     host: "smtp.gmail.com",
     secure: true,
@@ -11,6 +10,8 @@ const sendVerificationEmail = async (email, token) => {
       pass: process.env.EMAIL_PASS,
     },
   });
+
+const sendVerificationEmail = async (email, token) => {
 
   const verificationLink = `${process.env.CLIENT_URL}/verify-email/${token}`;
 
@@ -25,4 +26,19 @@ const sendVerificationEmail = async (email, token) => {
   await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendVerificationEmail };
+const sendResetEmail = async (token,email) => {
+    const resetLink = `${process.env.CLIENT_URL}/reset-password/${token}`;
+    const mailOptions = {
+      to: email,
+      subject: "Password Reset",
+      text: `Please click the link to reset your password: ${resetLink}`,
+    };
+  
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (err) {
+        console.log({"Send Reset email Error": err})
+    }
+}
+
+module.exports = { sendVerificationEmail, sendResetEmail };
