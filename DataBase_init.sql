@@ -47,6 +47,7 @@ create table if not exists transactions(
 	create_date timestamp default current_timestamp,
 	update_date timestamp default current_timestamp,
 	account_id int not null,
+	description varchar(1020) not null,
 	user_id int not null,
 	amount numeric(13,2) not null,
 	archived boolean default false,

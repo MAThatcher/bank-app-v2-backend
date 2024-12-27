@@ -33,8 +33,8 @@ router.get("/:accountId", authenticateToken, async (req, res) => {
     }
 
     //return the desired account
-    let output = await pool.query("select * from accounts where account_id = $1",[accountId]);
-    return res.json(output.rows);
+    let output = await pool.query("select * from accounts where id = $1",[accountId]);
+    return res.status(200).json(output.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");

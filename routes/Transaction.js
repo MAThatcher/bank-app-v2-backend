@@ -12,7 +12,7 @@ router.get("/:accountId", authenticateToken, async (req, res) => {
     if (validUser.rows.length === 0) { 
         return res .status(404) .json({ error: "No Authorized Accounts for this User" });
     }
-    const result = await pool.query( `select * from transactions where account_id = $1 and archived = false`, [accountId] );
+    const result = await pool.query( `select * from transactions where account_id = $1 and archived = false order by id desc`, [accountId] );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "No transactions or accounts found" });
     }
@@ -25,7 +25,7 @@ router.get("/:accountId", authenticateToken, async (req, res) => {
 
 //create transaction
 router.post("/", authenticateToken, async (req, res) => {
-  const { transactionAmount, accountId } = req.body;
+  const { transactionAmount, accountId, description } = req.body;
   try {
     let userId = req.user.user.id;
 
@@ -45,7 +45,7 @@ router.post("/", authenticateToken, async (req, res) => {
 
     //insert transaction into db and update bank balance
     await pool.query("BEGIN");
-    await pool.query( "insert into transactions (amount,user_id,account_id) values ($1, $2, $3);", [transactionAmount, userId, accountId] );
+    await pool.query( "insert into transactions (amount,user_id,account_id,description) values ($1, $2, $3, $4);", [transactionAmount, userId, accountId, description] );
     let newAmount = await pool.query( "Select balance from accounts where id = $1", [accountId] );
     newAmount = parseInt(newAmount.rows[0].balance) + transactionAmount;
     await pool.query("update accounts set balance = $1 where id = $2;", [ newAmount, accountId, ]);
