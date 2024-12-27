@@ -7,12 +7,10 @@ const pool = require("../db");
 router.get("/", authenticateToken, async (req, res) => {
   try {
     let email = req.user.user.email;
-    console.log(email);
     const result = await pool.query(
       `select a.id, a.name,a.balance from users u join account_users au on au.user_id = u.id join accounts a on a.id = au.account_id where u.email = $1 and a.archived = false;`,
       [email]
     );
-    console.log(result);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "No bank accounts found" });
     }
@@ -35,7 +33,8 @@ router.get("/:accountId", authenticateToken, async (req, res) => {
     }
 
     //return the desired account
-    return res.json(await pool.query("select * from accounts where account_id = $1",[accountId]));
+    let output = await pool.query("select * from accounts where account_id = $1",[accountId]);
+    return res.json(output.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
@@ -142,7 +141,7 @@ router.post("/transferOwnership", authenticateToken, async (req, res) => {
 
     //The user they want to give ownership must exists and have access to this account
     let accountUser = await pool.query("Select u.id from account_users au join users u on u.id = au.user_id where au.account_id = $1 and u.email = $2 and u.archived = false",[accountId,email]);
-    if (!accountUser.rows.length === 0 ){
+    if (accountUser.rows.length === 0 ){
       return res.status(404).json({message: "User to add must have access to this account to become its owner"});
     }
 
