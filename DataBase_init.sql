@@ -91,4 +91,4 @@ create table if not exists tokens(
 	valid boolean default true,
 	constraint fk_users foreign key (user_id)
 	references users(id)
-)e,expire_date) values ('test1',1,'AccessToken',current_timestamp + (15 ||' minutes')::interval);
+);
