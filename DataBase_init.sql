@@ -3,6 +3,7 @@ drop table if exists account_users;
 drop table if exists transactions;
 drop table if exists accounts;
 drop table if exists notifications;
+drop table if exists tokens;
 drop table if exists users;
 
 create table if not exists users (
@@ -80,3 +81,14 @@ create table if not exists notifications(
 	constraint fk_users foreign key (user_id)
 	references users(id)
 );
+create table if not exists tokens(
+	id serial primary key,
+	value varchar(1028) not null,
+	type varchar(64) default 'AccessToken',
+	create_date timestamp default current_timestamp,
+	expire_date timestamp default current_timestamp,
+	user_id int not null,
+	valid boolean default true,
+	constraint fk_users foreign key (user_id)
+	references users(id)
+)e,expire_date) values ('test1',1,'AccessToken',current_timestamp + (15 ||' minutes')::interval);
