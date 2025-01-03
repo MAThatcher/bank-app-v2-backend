@@ -6,9 +6,10 @@ const generateAccessToken =  (user) => {
   try {
     let token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: "15m" });
     pool.query("BEGIN");
-    pool.query("update tokens set valid = false where user_id = $1 and type = 'AccessToken' and valid = true",[user.user.user.id]);
-    pool.query("insert into tokens (value,user_id,type,expire_date) values ($1,$2,'AccessToken',current_timestamp + (15 ||' minutes')::interval);",[token,user.user.user.id]);
+    pool.query("update tokens set valid = false where user_id = $1 and type = 'AccessToken' and valid = true",[user.user.id]);
+    pool.query("insert into tokens (value,user_id,type,expire_date) values ($1,$2,'AccessToken',current_timestamp + (15 ||' minutes')::interval);",[token,user.user.id]);
     pool.query("COMMIT");
+    console.log(token);
     return token;
   }
   catch (err){
@@ -20,8 +21,8 @@ const generateRefreshToken =  (user) => {
   try {
     let token = jwt.sign(user, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
     pool.query("BEGIN");
-    pool.query("update tokens set valid = false where user_id = $1 and type = 'RefreshToken' and valid = true",[user.user.user.id]);
-    pool.query("insert into tokens (value,user_id,type,expire_date) values ($1,$2,'RefreshToken',current_timestamp + (7 ||' day')::interval);",[token,user.user.user.id]);
+    pool.query("update tokens set valid = false where user_id = $1 and type = 'RefreshToken' and valid = true",[user.user.id]);
+    pool.query("insert into tokens (value,user_id,type,expire_date) values ($1,$2,'RefreshToken',current_timestamp + (7 ||' day')::interval);",[token,user.user.id]);
     pool.query("COMMIT");
     return token;
   }
