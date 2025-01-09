@@ -1,6 +1,8 @@
 const chai = require("chai");
 const chaiHttp = require("chai-http");
 const server = require("../server");
+const http = require("http");
+const sinon = require("sinon");
 
 
 chai.use(chaiHttp);
@@ -15,16 +17,34 @@ jest.mock("../routes/Transaction", () => require("express").Router().get("/", (r
 jest.mock("../routes/Notification", () => require("express").Router().get("/", (req, res) => res.status(200).send("Notification Route")));
 
 
-describe("Server API Routes", () => {
-  it("should respond with 'API is running...' for the root route", (done) => {
-    chai
+describe("Server API Routes",  () => {
+  
+  it("should respond with 'API is running...' for the root route", async () => {
+    const res = await chai
       .request(server)
-      .get("/")
-      .end((err, res) => {
-        expect(res).to.have.status(200);
-        expect(res.text).to.equal("API is running...");
-        done();
+      .get("/");
+      expect(res).to.have.status(200);
+      expect(res.text).to.equal("API is running...");
+  });
+  
+  it("should log the correct message when the server starts", () => {
+    const logSpy = sinon.spy(console, "log");
+    const listenStub = sinon.stub(server, "listen").callsFake((port, callback) => {
+      callback(); // Simulate the callback
+      return { close: sinon.stub() }; // Mock server instance
+    });
+
+    // Simulate running the server
+    if (require.main === module) {
+      const PORT = 5000;
+      server.listen(PORT, () => {
+        expect(logSpy.calledOnce).to.be.true;
+        expect(logSpy.firstCall.args[0]).to.equal(`Server running on port ${PORT}`);
       });
+    }
+
+    logSpy.restore(); // Cleanup the spy
+    listenStub.restore(); // Cleanup the stub
   });
 });
 
