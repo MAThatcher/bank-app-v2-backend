@@ -25,9 +25,12 @@ app.use("/api/notification", notificationRoutes);
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
+module.exports = app;
 
 if (require.main === module) {
+  /* istanbul ignore next */
   const PORT = process.env.PORT || 5000;
+  /* istanbul ignore next */
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

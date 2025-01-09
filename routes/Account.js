@@ -107,7 +107,7 @@ router.post("/addUser", authenticateToken, async (req, res) => {
       
       //Does this user all ready have access?
       let hasAccess = await pool.query("Select * from account_users where account_id = $1 and user_id = $2 and archived = false",[accountId,newUser.rows[0].id]);
-      if (!hasAccess.rows.length === 0 ){
+      if (hasAccess.rows.length === 0 ){
         return res.status(404).json({message: "User has access all ready"});
       }
 

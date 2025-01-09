@@ -15,7 +15,7 @@ router.get("/", authenticateToken, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "No notifications found" });
     }
-    res.json(result.rows);
+    res.json.status(200)(result.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");

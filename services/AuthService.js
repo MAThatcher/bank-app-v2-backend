@@ -9,7 +9,6 @@ const generateAccessToken =  (user) => {
     pool.query("update tokens set valid = false where user_id = $1 and type = 'AccessToken' and valid = true",[user.user.id]);
     pool.query("insert into tokens (value,user_id,type,expire_date) values ($1,$2,'AccessToken',current_timestamp + (15 ||' minutes')::interval);",[token,user.user.id]);
     pool.query("COMMIT");
-    console.log(token);
     return token;
   }
   catch (err){
