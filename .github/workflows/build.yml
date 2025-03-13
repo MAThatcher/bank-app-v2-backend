@@ -8,6 +8,7 @@ on:
       - 'dev*'
       - 'releases/**'
       - 'test'
+      - 'test2'
   pull_request:
       types: [opened, synchronize, reopened]
 
