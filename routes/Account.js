@@ -64,7 +64,7 @@ router.delete("/", authenticateToken, async (req, res) => {
 
     //does the bank account thats being deleted exist? Is the user the owner of the account? Is the balance on the acccount zero?
     const result = await pool.query(
-      `select a.balance,a.owner from accounts a u.owner = $1 and a.id = $2;`,
+      `select a.balance,a.owner from accounts a where a.owner = $1 and a.id = $2;`,
       [userId, accountId]
     );
     if (result.rows.length === 0) {

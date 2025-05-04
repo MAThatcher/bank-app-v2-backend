@@ -30,11 +30,11 @@ describe("Server API Routes",  () => {
   it("should log the correct message when the server starts", () => {
     const logSpy = sinon.spy(console, "log");
     const listenStub = sinon.stub(server, "listen").callsFake((port, callback) => {
-      callback(); // Simulate the callback
-      return { close: sinon.stub() }; // Mock server instance
+      callback();
+      return { close: sinon.stub() };
     });
 
-    // Simulate running the server
+
     if (require.main === module) {
       const PORT = 5000;
       server.listen(PORT, () => {
@@ -43,8 +43,8 @@ describe("Server API Routes",  () => {
       });
     }
 
-    logSpy.restore(); // Cleanup the spy
-    listenStub.restore(); // Cleanup the stub
+    logSpy.restore();
+    listenStub.restore();
   });
 });
 

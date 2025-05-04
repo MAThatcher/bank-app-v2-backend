@@ -1,3 +1,4 @@
+jest.mock('../../db.js'); // Must match the relative path you use in real code
 const chai = require("chai");
 const chaiHttp = require("chai-http");
 const sinon = require("sinon");
@@ -5,7 +6,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { expect } = chai;
 const server = require("../../server");
-const pool = require("../../db");
+const pool = require('../../db.js');
 const { sendResetEmail } = require("../../services/NodeMailer");
 
 chai.use(chaiHttp);
