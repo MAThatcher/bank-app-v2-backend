@@ -23,7 +23,7 @@ jobs:
       with:
         node-version: "22.15.0"
     - run: npm ci
-    - run: npm test server.test.js
+    - run: npm test
 
     - name: SonarQube Scan
       uses: SonarSource/sonarqube-scan-action@v5.1.0
