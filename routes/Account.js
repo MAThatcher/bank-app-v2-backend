@@ -195,7 +195,7 @@ router.post("/transferOwnership", authenticateToken, async (req, res) => {
     );
     if (accountUser.rows.length === 0) {
       return res
-        .status(404)
+        .status(403)
         .json({
           message:
             "User to add must have access to this account to become its owner",
