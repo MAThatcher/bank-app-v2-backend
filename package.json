@@ -31,7 +31,7 @@
     "supertest": "^7.0.0"
   },
   "jest": {
-    "setupFiles": ["./jest.setup.js"],
+    "setupFilesAfterEnv": ["./jest.setup.js"],
     "verbose": true,
     "transform": {
       "^.+\\.js$": "babel-jest"
