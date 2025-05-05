@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { expect } = chai;
 const server = require("../../server");
-const pool = require("../../db");
+const pool = require("../../db.js");
 
 chai.use(chaiHttp);
 
