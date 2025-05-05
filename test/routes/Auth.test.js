@@ -9,7 +9,7 @@ const pool = require("../../db.js");
 
 chai.use(chaiHttp);
 
-describe("Auth Routes", (done) => {
+describe("Auth Routes", () => {
   afterEach(() => {
     sinon.restore(); // Reset stubs and mocks after each test
   });

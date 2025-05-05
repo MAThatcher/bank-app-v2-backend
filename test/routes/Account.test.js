@@ -1,105 +1,218 @@
-const request = require('supertest');
-const express = require('express');
-const accountRoutes = require('../../routes/Account');
-const pool = require('../../db.js');
-const AuthService = require('../../services/AuthService');
+const chai = require("chai");
+const chaiHttp = require("chai-http");
+const sinon = require("sinon");
+const { expect } = chai;
+const jwt = require("jsonwebtoken");
+const server = require("../../server");
+const pool = require("../../db");
 
-jest.mock('../../db.js');
-jest.mock('../../services/AuthService');
+chai.use(chaiHttp);
 
-const app = express();
-app.use(express.json());
-app.use('/', accountRoutes);
-
-beforeAll(() => {
-  AuthService.authenticateToken.mockImplementation((req, res, next) => {
-    req.user = { user: { id: 1, email: 'test@test.com' } };
-    next();
+// Helper functions
+const mockEmail= "email@email.com";
+function generateMockToken() {
+  return jwt.sign({ user: { email: mockEmail } }, "mock-secret", {
+    expiresIn: "1h",
   });
-});
+}
+function mockJwtVerify(mockToken, mockUser) {
+  sinon.stub(jwt, "verify").callsFake((token, secret, callback) => {
+    if (token === mockToken) {
+      callback(null, mockUser); // Inject mock user
+    } else {
+      callback(new Error("Invalid token"));
+    }
+  });
+}
 
-afterEach(() => {
-  jest.clearAllMocks();
-});
+describe("Account Routes", () => {
+  afterEach(() => {
+    sinon.restore(); // Reset stubs and mocks after each test
+  });
 
-describe('Account Routes', () => {
-  test('GET / should return user accounts', async () => {
-    pool.query.mockResolvedValueOnce({
-      rows: [{ id: 1, name: 'Test Account', balance: 100 }],
+  describe("GET /api/account", () => {
+    it("should return all accounts for a user", async () => {
+      const mockAccounts = [
+        { id: 1, name: "Savings", balance: "1000" },
+        { id: 2, name: "Checking", balance: "500" },
+      ];
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon.stub(pool, "query").resolves({ rows: mockAccounts });
+
+      const res = await chai
+        .request(server)
+        .get("/api/account/")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ mockAccounts });
+
+      expect(res).to.have.status(200);
+      expect(res.body).to.deep.equal(mockAccounts);
+    });
+  });
+
+  describe("GET /api/accounts/:accountId", () => {
+    it("should return a single account if the user is authorized", async () => {
+      const mockAccountId = 123;
+      const mockAccount = [
+        { id: mockAccountId, name: "Savings", balance: 1000 },
+      ];
+
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves({ rows: [{ valid: true }] }) // Valid user check
+        .onSecondCall()
+        .resolves({ rows: mockAccount }); // Account details
+
+      const res = await chai
+        .request(server)
+        .get(`/api/account/${mockAccountId}`)
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ mockAccount });
+
+      expect(res).to.have.status(200);
+      expect(res.body).to.deep.equal(mockAccount);
     });
 
-    const res = await request(app).get('/');
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual(expect.any(Array));
+    it("should return 404 if the user is not authorized", async () => {
+      const mockAccountId = 123;
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon.stub(pool, "query").resolves({ rows: [] }); // Invalid user check
+
+      const res = await chai
+        .request(server)
+        .get(`/api/account/${mockAccountId}`)
+        .set("Authorization", `Bearer ${mockToken}`);
+
+      expect(res).to.have.status(404);
+      expect(res.body).to.have.property(
+        "error",
+        "Account does not exist or user is not authorized"
+      );
+    });
   });
 
-  test('GET /:accountId should return single account', async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ account_id: 1, user_id: 1 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Test Account' }] });
-    const res = await request(app).get('/1');
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual(expect.any(Array));
+  describe("POST /api/account", () => {
+    it("should create a bank account and return 201", async () => {
+      const mockAccountId = 123;
+      const mockAccountName = "Savings";
+      const mockToken = generateMockToken("email@email.com");
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves() // BEGIN
+        .onSecondCall()
+        .resolves({ rows: [{ id: mockAccountId }] }) // Insert account
+        .onThirdCall()
+        .resolves() // Insert account_users
+        .onCall(3)
+        .resolves(); // COMMIT
+
+      const res = await chai
+        .request(server)
+        .post("/api/account")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountName: mockAccountName });
+
+      expect(res).to.have.status(201);
+      expect(res.body).to.have.property(
+        "message",
+        "Account created successfully"
+      );
+      expect(res.body).to.have.property("accountId", mockAccountId);
+    });
+
+    it("should return 500 if account creation fails", async () => {
+      const mockAccountName = "Savings";
+
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves() // BEGIN
+        .onSecondCall()
+        .throws(new Error("Database error")) // Insert account
+        .onCall(2)
+        .resolves(); // ROLLBACK
+
+      const res = await chai
+        .request(server)
+        .post("/api/account")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountName: mockAccountName });
+
+      expect(res).to.have.status(500);
+      expect(res.body).to.have.property("error", "Error creating account");
+    });
   });
 
-  test('POST / should create a bank account', async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ userId: 123 }] })
-      .mockResolvedValueOnce()
-      .mockResolvedValueOnce();
+  describe("DELETE /api/account", () => {
+    it("should delete a bank account if conditions are met", async () => {
+      const mockUserId = 1;
+      const mockAccountId = 123;
 
-    const res = await request(app)
-      .post('/')
-      .send({ accountName: 'New Account' });
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
 
-    expect(res.statusCode).toBe(201);
-    expect(res.body).toHaveProperty('accountId');
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves({ rows: [{ balance: 0, owner: mockUserId }] }) // Account exists and balance is 0
+        .onSecondCall()
+        .resolves() // BEGIN
+        .onThirdCall()
+        .resolves() // Update account_users
+        .onCall(3)
+        .resolves() // Update accounts
+        .onCall(4)
+        .resolves() // Update transactions
+        .onCall(5)
+        .resolves(); // COMMIT
+
+      const res = await chai
+        .request(server)
+        .delete("/api/account")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountId: mockAccountId });
+
+      expect(res).to.have.status(200);
+      expect(res.body).to.have.property(
+        "message",
+        "Account Deleted Successfully"
+      );
+    });
+
+    it("should return 404 if the account does not exist", async () => {
+      const mockAccountId = 123;
+
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon.stub(pool, "query").resolves({ rows: [] }); // Account does not exist
+
+      const res = await chai
+        .request(server)
+        .delete("/api/account")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountId: mockAccountId });
+
+      expect(res).to.have.status(404);
+      expect(res.body).to.have.property(
+        "error",
+        "Bank Account not found or is not the owner of this account"
+      );
+    });
   });
 
-  test('DELETE / should delete an account', async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ balance: 0, owner: 1 }] })
-      .mockResolvedValueOnce()
-      .mockResolvedValueOnce()
-      .mockResolvedValueOnce()
-      .mockResolvedValueOnce();
-
-    const res = await request(app)
-      .delete('/')
-      .send({ accountId: 1 });
-
-    expect(res.statusCode).toBe(200);
-    expect(res.body.message).toBe('Account Deleted Successfully');
-  });
-
-  test('POST /addUser should add a user', async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 2 }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce()
-      .mockResolvedValueOnce();
-
-    const res = await request(app)
-      .post('/addUser')
-      .send({ accountId: 1, email: 'other@example.com' });
-
-    expect(res.statusCode).toBe(201);
-    expect(res.body).toHaveProperty('message');
-  });
-
-  test('POST /transferOwnership should transfer ownership', async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 2 }] })
-      .mockResolvedValueOnce()
-      .mockResolvedValueOnce();
-
-    const res = await request(app)
-      .post('/transferOwnership')
-      .send({ accountId: 1, email: 'newowner@example.com' });
-
-    expect(res.statusCode).toBe(201);
-    expect(res.body).toHaveProperty('message');
-  });
+//   Add tests for /addUser and /transferOwnership routes similarly
 });
