@@ -24,7 +24,7 @@ jobs:
         node-version: "22.15.0"
     - name: Create Dummy db.js
       run: |
-        echo "const { Pool } = require("pg");const pool = new Pool({});module.exports = pool;" > ./db.js
+        echo "const { Pool } = require('pg');const pool = new Pool({});module.exports = pool;" > ./db.js
     - run: npm ci
     - run: npm test
 
