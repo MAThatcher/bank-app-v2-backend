@@ -1,7 +1,6 @@
 const request = require('supertest');
 const express = require('express');
 const accountRoutes = require('../../routes/Account');
-jest.mock('../../db.js');
 const pool = require('../../db.js');
 const AuthService = require('../../services/AuthService');
 
