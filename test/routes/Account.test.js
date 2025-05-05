@@ -9,7 +9,9 @@ const pool = require("../../db");
 chai.use(chaiHttp);
 
 // Helper functions
-const mockEmail= "email@email.com";
+const mockEmail = "email@email.com";
+const mockUserId = 1;
+const mockAccountId=1;
 function generateMockToken() {
   return jwt.sign({ user: { email: mockEmail } }, "mock-secret", {
     expiresIn: "1h",
@@ -52,9 +54,8 @@ describe("Account Routes", () => {
     });
   });
 
-  describe("GET /api/accounts/:accountId", () => {
+  describe("GET /api/account/:accountId", () => {
     it("should return a single account if the user is authorized", async () => {
-      const mockAccountId = 123;
       const mockAccount = [
         { id: mockAccountId, name: "Savings", balance: 1000 },
       ];
@@ -79,7 +80,6 @@ describe("Account Routes", () => {
     });
 
     it("should return 404 if the user is not authorized", async () => {
-      const mockAccountId = 123;
       const mockToken = generateMockToken();
       mockJwtVerify(mockToken, { user: { email: mockEmail } });
 
@@ -100,9 +100,8 @@ describe("Account Routes", () => {
 
   describe("POST /api/account", () => {
     it("should create a bank account and return 201", async () => {
-      const mockAccountId = 123;
       const mockAccountName = "Savings";
-      const mockToken = generateMockToken("email@email.com");
+      const mockToken = generateMockToken(mockEmail);
       mockJwtVerify(mockToken, { user: { email: mockEmail } });
 
       sinon
@@ -158,8 +157,6 @@ describe("Account Routes", () => {
 
   describe("DELETE /api/account", () => {
     it("should delete a bank account if conditions are met", async () => {
-      const mockUserId = 1;
-      const mockAccountId = 123;
 
       const mockToken = generateMockToken();
       mockJwtVerify(mockToken, { user: { email: mockEmail } });
@@ -193,8 +190,6 @@ describe("Account Routes", () => {
     });
 
     it("should return 404 if the account does not exist", async () => {
-      const mockAccountId = 123;
-
       const mockToken = generateMockToken();
       mockJwtVerify(mockToken, { user: { email: mockEmail } });
 
@@ -214,5 +209,138 @@ describe("Account Routes", () => {
     });
   });
 
-//   Add tests for /addUser and /transferOwnership routes similarly
+  //   Add tests for /addUser and /transferOwnership routes similarly
+  describe("POST /api/account/addUser", () => {
+    it("should add an authorized user to list of account users.", async () => {
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves({ rows: [{ id:mockAccountId,owner:mockUserId }] }) 
+        .onSecondCall()
+        .resolves({ rows: [{ email: mockEmail }] }) 
+        .onThirdCall()
+        .resolves({ rows: [{ email: mockEmail }] }) 
+        .onCall(3)
+        .resolves() // BEGIN
+        .onCall(4)
+        .resolves() // Update accounts
+        .onCall(5)
+        .resolves(); // COMMIT
+
+      const res = await chai
+        .request(server)
+        .post("/api/account/addUser")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountId: mockAccountId });
+
+      expect(res).to.have.status(201);
+      expect(res.body).to.have.property(
+        "message",
+        "User Added successfully"
+      );
+    });
+    it("should return 401 if user cannot add others to account", async () => {
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves({ rows: [] }) 
+
+      const res = await chai
+        .request(server)
+        .post("/api/account/addUser")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountId: mockAccountId });
+
+      expect(res).to.have.status(401);
+      expect(res.body).to.have.property(
+        "message",
+        "Unauthorized: Must be accounts owner to add users"
+      );
+    });
+    it("should return 404 if the user does not exist", async () => {
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves({ rows: [{ id:mockAccountId,owner:mockUserId }] }) 
+        .onSecondCall()
+        .resolves({ rows: [] }) 
+
+      const res = await chai
+        .request(server)
+        .post("/api/account/addUser")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountId: mockAccountId });
+
+      expect(res).to.have.status(404);
+      expect(res.body).to.have.property(
+        "message",
+        "User Not found"
+      );
+    });
+    it("should return 403 if the user all ready has access", async () => {
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves({ rows: [{ id:mockAccountId,owner:mockUserId }] }) 
+        .onSecondCall()
+        .resolves({ rows: [{ email: mockEmail }] }) 
+        .onThirdCall()
+        .resolves({ rows: [] }) 
+
+      const res = await chai
+        .request(server)
+        .post("/api/account/addUser")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountId: mockAccountId });
+
+      expect(res).to.have.status(403);
+      expect(res.body).to.have.property(
+        "message",
+        "User has access all ready"
+      );
+    });
+    it("should return 500 if there is a DB error", async () => {
+      const mockToken = generateMockToken();
+      mockJwtVerify(mockToken, { user: { email: mockEmail } });
+
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves({ rows: [{ id:mockAccountId,owner:mockUserId }] }) 
+        .onSecondCall()
+        .resolves({ rows: [{ email: mockEmail }] }) 
+        .onThirdCall()
+        .resolves({ rows: [{ email: mockEmail }] }) 
+        .onCall(3)
+        .resolves() // BEGIN
+        .onCall(4)
+        .throws(new Error("Database Error"))
+        .onCall(5)
+        .resolves(); // ROLLBACK
+
+      const res = await chai
+        .request(server)
+        .post("/api/account/addUser")
+        .set("Authorization", `Bearer ${mockToken}`)
+        .send({ accountId: mockAccountId });
+
+      expect(res).to.have.status(500);
+      expect(res.body).to.have.property(
+        "error",
+        "Error adding user"
+      );
+    });
+  });
 });
