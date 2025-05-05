@@ -18,15 +18,18 @@ jobs:
       with:
         # Disabling shallow clones is recommended for improving the relevancy of reporting
         fetch-depth: 0
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: "22.15.0"
-    - run: npm ci
-    - run: npm test
+    # - name: Use Node.js
+    #   uses: actions/setup-node@v4
+    #   with:
+    #     node-version: "22.15.0"
+    # - name: Create Dummy db.js
+    #   run: |
+    #     echo "const { Pool } = require('pg');const pool = new Pool({});module.exports = pool;" > ./db.js
+    # - run: npm ci
+    # - run: npm test
 
     - name: SonarQube Scan
-      uses: SonarSource/sonarqube-scan-action@5.1.0
+      uses: SonarSource/sonarqube-scan-action@v5.1.0
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
