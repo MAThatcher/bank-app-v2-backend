@@ -6,7 +6,11 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const { sendVerificationEmail } = require("../services/NodeMailer");
 
-const { generateAccessToken, generateRefreshToken, authenticateToken } = require("../services/AuthService");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  authenticateToken,
+} = require("../services/AuthService");
 
 //delete user
 router.delete("/:email", authenticateToken, async (req, res) => {
@@ -89,14 +93,21 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     await pool.query("BEGIN");
     await sendVerificationEmail(email, token);
-    let newUserId = await pool.query("INSERT INTO users (email, password ) VALUES ($1, $2) returning id;", [ email, hashedPassword ]);
-    await pool.query("insert into user_details (user_id) values ($1)",[newUserId.rows[0].id]);
+    let newUserId = await pool.query(
+      "INSERT INTO users (email, password ) VALUES ($1, $2) returning id;",
+      [email, hashedPassword]
+    );
+    await pool.query("insert into user_details (user_id) values ($1)", [
+      newUserId.rows[0].id,
+    ]);
     await pool.query("COMMIT");
-    return res.status(200).json({ message: "Verification email sent. Please check your inbox." });
+    return res
+      .status(200)
+      .json({ message: "Verification email sent. Please check your inbox." });
   } catch (err) {
     await pool.query("ROLLBACK");
-    console.error("Error sending email:", err);
-    res.status(500).json({ message: "Error sending email" });
+    console.log(err.message);
+    res.status(500).json({ error: "Server Error" });
   }
 });
 
@@ -108,14 +119,21 @@ router.get("/verify-email/:token", async (req, res) => {
     const { email } = decoded;
 
     await pool.query("BEGIN");
-    await pool.query("update users set verified = true where email = $1;", [ email, ]);
+    await pool.query("update users set verified = true where email = $1;", [
+      email,
+    ]);
     await pool.query("COMMIT");
     return res.status(200).json({ message: "Email successfully verified." });
   } catch (error) {
     await pool.query("ROLLBACK");
-    return res.status(400).json({ message: "Invalid or expired token." });
+    console.log("Error verifying email:", error);
+    if (error.name === "TokenExpiredError") {
+      return res.status(400).json({ error: "Token has expired" });
+    } else if (error.name === "JsonWebTokenError") {
+      return res.status(400).json({ error: "Invalid token" });
+    }
+    res.status(500).json({ error: "Server Error" });
   }
 });
-
 
 module.exports = router;

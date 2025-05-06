@@ -149,7 +149,7 @@ router.post("/addUser", authenticateToken, async (req, res) => {
       [accountId, newUser.rows[0].id]
     );
     if (hasAccess.rows.length === 0) {
-      return res.status(404).json({ message: "User has access all ready" });
+      return res.status(403).json({ message: "User has access all ready" });
     }
 
     //Give the user access
@@ -195,7 +195,7 @@ router.post("/transferOwnership", authenticateToken, async (req, res) => {
     );
     if (accountUser.rows.length === 0) {
       return res
-        .status(404)
+        .status(403)
         .json({
           message:
             "User to add must have access to this account to become its owner",
