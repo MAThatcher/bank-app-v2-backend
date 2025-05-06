@@ -133,7 +133,7 @@ describe("Account Routes", () => {
   describe("POST /api/account", () => {
     it("should create a bank account and return 201", async () => {
       const mockAccountName = "Savings";
-      const mockToken = generateMockToken(mockEmail);
+      const mockToken = generateMockToken();
       mockJwtVerify(mockToken, { user: { email: mockEmail } });
 
       sinon
