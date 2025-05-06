@@ -25,15 +25,17 @@ router.post("/refresh", async (req, res) => {
         return res.sendStatus(403);
       }
 
-      let accessToken = generateAccessToken({user});
-      res.status(200).json( {accessToken} );
+      let accessToken = generateAccessToken({ user });
+      return res.status(200).json({ accessToken });
     });
   } catch (error) {
-    res.status(500).json({ message: "Error" });
+    console.error(error);
+    return res.status(500).json({ message: "Error" });
   }
 });
 
 router.post("/forgot-password", async (req, res) => {
+  try {
   const { email } = req.body;
   const user = await pool.query(
     "Select * from users where email = $1 and archived = false and verified = true",
@@ -46,11 +48,12 @@ router.post("/forgot-password", async (req, res) => {
   const token = jwt.sign(user.rows[0], process.env.JWT_SECRET, {
     expiresIn: "15m",
   });
-  try {
+
     sendResetEmail(token, email);
     res.status(200).json({ message: "Password reset email sent" });
   } catch (error) {
-    res.status(500).json({ message: "Error sending email" });
+    console.log(error);
+    return res.status(500).json({ message: "Error sending email" });
   }
 });
 
@@ -76,6 +79,7 @@ router.post("/reset-password", async (req, res) => {
     return res.status(200).json({ message: "Password reset successfully" });
   } catch (err) {
     await pool.query("ROLLBACK");
+    console.error(err.message);
     return res.status(500).json({ message: "Failed to reset password" });
   }
 });

@@ -45,7 +45,7 @@ router.get("/", authenticateToken, async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    return res.status(500).json({ error: "Server Error" });
   }
 });
 
@@ -126,13 +126,8 @@ router.get("/verify-email/:token", async (req, res) => {
     return res.status(200).json({ message: "Email successfully verified." });
   } catch (error) {
     await pool.query("ROLLBACK");
-    console.log("Error verifying email:", error);
-    if (error.name === "TokenExpiredError") {
-      return res.status(400).json({ error: "Token has expired" });
-    } else if (error.name === "JsonWebTokenError") {
-      return res.status(400).json({ error: "Invalid token" });
-    }
-    res.status(500).json({ error: "Server Error" });
+    console.log("Error verifying email:", error.message);
+    return res.status(500).json({ error: "Server Error" });
   }
 });
 

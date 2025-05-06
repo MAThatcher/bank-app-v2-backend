@@ -131,20 +131,18 @@ describe("Auth Routes", () => {
       expect(res.body).to.have.property("message", "Password reset email sent");
     });
 
-    // it("should return 500 if there is an error sending the email",async () => {
-    //   const email = "testuser@example.com";
-    //   const validToken = "valid-refresh-token";
+    it("should return 500 if there is an error sending the email", async () => {
+      // Mock database query to return the user
+      sinon.stub(pool, "query").throws(new Error("Database error"));
+      
 
-    //   // Mock database query to return the user
-    //   sinon.stub(pool, "query").throws(new Error())
-
-    //   const res = await chai
-    //     .request(server)
-    //     .post("/api/auth/forgot-password")
-    //     .send({ email,validToken });
-    //     expect(res).to.have.status(500); // Internal Server Error
-    //     expect(res.body).to.have.property("message", "Error sending email");
-    // });
+      const res = await chai
+        .request(server)
+        .post("/api/auth/forgot-password")
+        .send( "",  "" );
+      expect(res).to.have.status(500); // Internal Server Error
+      expect(res.body).to.have.property("message", "Error sending email");
+    });
   });
 
   describe("POST /api/auth/reset-password", () => {

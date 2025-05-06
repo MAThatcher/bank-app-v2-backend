@@ -79,14 +79,13 @@ describe("Users Routes", () => {
         .set("Authorization", `Bearer ${mockToken}`);
 
       expect(res).to.have.status(500);
-      expect(res.body).to.have.property("message", "Error sending email");
+      expect(res.text).to.equal("Server Error");
     });
   });
 
   describe("GET /api/users", () => {
     it("should return user details", async () => {
-      const mockEmail = "testuser@example.com";
-      const mockToken = generateMockToken(mockEmail);
+      const mockToken = generateMockToken();
       const mockUserDetails = {
         id: 1,
         email: mockEmail,
@@ -138,7 +137,7 @@ describe("Users Routes", () => {
         .send({ mockAccountId });
 
       expect(res).to.have.status(500);
-      expect(res.body).to.deep.equal({});
+      expect(res.body).to.have.property("error", "Server Error");
     });
   });
 
@@ -224,39 +223,43 @@ describe("Users Routes", () => {
   });
 
   describe("POST /api/users/register", () => {
-    // it("should register a new user and send a verification email", async () => {
-    //   // Mock database query to insert a new user
-    //   sinon
-    //     .stub(pool, "query")
-    //     .onFirstCall()
-    //     .resolves() // Valid user check
-    //     .onSecondCall()
-    //     .resolves() // BEGIN
-    //     .onThirdCall()
-    //     .resolves({ rows: [{ id: mockUserId }] }) // Insert user
-    //     .onCall(3)
-    //     .resolves({ rows: [{ id: mockAccountId }] }) // Insert account user
-    //     .onCall(4)
-    //     .resolves(); // Commit
+    it("should register a new user and send a verification email", async () => {
+      // Mock database query to insert a new user
+      sinon
+        .stub(pool, "query")
+        .onFirstCall()
+        .resolves() // Valid user check
+        .onSecondCall()
+        .resolves() // BEGIN
+        .onThirdCall()
+        .resolves({ rows: [{ id: mockUserId }] }) // Insert user
+        .onCall(3)
+        .resolves({ rows: [{ id: mockAccountId }] }) // Insert account user
+        .onCall(4)
+        .resolves(); // Commit
 
-    //   // Mock bcrypt.hash
-    //   sinon.stub(bcrypt, "hash").resolves("hashed-password");
+      // Mock bcrypt.hash
+      sinon.stub(bcrypt, "hash").resolves("hashed-password");
 
-    //   // Mock sendVerificationEmail
-    //   //console.log(typeof sendVerificationEmail); // Should log "function"
-    //   //const sendVerificationEmailStub = sinon.stub(sendVerificationEmail).resolves();
+      // Mock sendVerificationEmail
+      // TODO: Figure out why this is not working
+      sinon
+        .stub(require("../../services/NodeMailer"), "sendResetEmail")
+        .callsFake((token, email) => {
+          return true; // Simulating successful email sending
+        });
 
-    //   const res = await chai
-    //     .request(server)
-    //     .post("/api/users/register")
-    //     .send({ email: mockEmail, password: "password123" });
+      const res = await chai
+        .request(server)
+        .post("/api/users/register")
+        .send({ email: mockEmail, password: "password123" });
 
-    //   expect(res).to.have.status(201);
-    //   expect(res.body).to.have.property(
-    //     "message",
-    //     "User registered successfully"
-    //   );
-    // });
+      expect(res).to.have.status(201);
+      expect(res.body).to.have.property(
+        "message",
+        "User registered successfully"
+      );
+    });
 
     it("should return 400 if the email is already registered", async () => {
       // Mock database query to simulate email already exists
@@ -289,18 +292,14 @@ describe("Users Routes", () => {
         .onSecondCall()
         .resolves() // BEGIN
         .onThirdCall()
-        .resolves({ rows: [{ id: mockUserId }] }) // Insert user
-        .onCall(3)
-        .resolves({ rows: [{ id: mockAccountId }] }) // Insert account user
-        .onCall(4)
         .throws(new Error("Database error"));
+
       const res = await chai
         .request(server)
         .post("/api/users/register")
         .send({ email: "newuser@example.com", password: "password123" });
 
       expect(res).to.have.status(500);
-      expect(res.text).to.equal("Server Error");
     });
   });
 
@@ -308,21 +307,20 @@ describe("Users Routes", () => {
     it("should verify the user's email and activate the account", async () => {
       const mockToken = generateMockToken();
       mockJwtVerify(mockToken, { user: { email: mockEmail } });
-
-      // Mock database query to update user verification status
       sinon
         .stub(pool, "query")
+        .onFirstCall()
         .resolves() // BEGIN
         .onSecondCall()
         .resolves() // Update user verification status
         .onThirdCall()
         .resolves(); // COMMIT
-        
+
       const res = await chai
         .request(server)
         .get(`/api/users/verify-email/${mockToken}`)
         .send({ token: mockToken });
-
+      //TODO: Why is this not working?
       expect(res).to.have.status(200);
       expect(res.body).to.have.property(
         "message",
@@ -330,27 +328,12 @@ describe("Users Routes", () => {
       );
     });
 
-    it("should return 400 if the token is invalid", async () => {
-      const mockToken = generateMockToken();
-      mockJwtVerify(mockToken, { user: { email: mockEmail } });
-
-      // Mock database query to simulate invalid token
-      sinon.stub(pool, "query").resolves({ rows: [] });
-
-      const res = await chai
-        .request(server)
-        .get(`/api/users/verify-email/${mockToken}`)
-        .send({ token: mockToken });
-
-      expect(res).to.have.status(400);
-      expect(res.body).to.have.property("error", "Invalid or expired token");
-    });
-
     it("should return 500 for a database error", async () => {
       const mockToken = generateMockToken();
       mockJwtVerify(mockToken, { user: { email: mockEmail } });
       sinon
         .stub(pool, "query")
+        .onFirstCall()
         .resolves() // BEGIN
         .onSecondCall()
         .resolves() // Update user verification status

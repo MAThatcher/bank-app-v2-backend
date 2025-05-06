@@ -83,11 +83,9 @@ router.delete("/", authenticateToken, async (req, res) => {
       [userId, accountId]
     );
     if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({
-          error: "Bank Account not found or is not the owner of this account",
-        });
+      return res.status(404).json({
+        error: "Bank Account not found or is not the owner of this account",
+      });
     } else if (result.rows[0].balance != 0.0) {
       return res
         .status(401)
@@ -181,11 +179,9 @@ router.post("/transferOwnership", authenticateToken, async (req, res) => {
       [userId, accountId]
     );
     if (result.rows.length === 0) {
-      return res
-        .status(401)
-        .json({
-          message: "Unauthorized: Must be accounts owner change ownership",
-        });
+      return res.status(401).json({
+        message: "Unauthorized: Must be accounts owner change ownership",
+      });
     }
 
     //The user they want to give ownership must exists and have access to this account
@@ -194,12 +190,10 @@ router.post("/transferOwnership", authenticateToken, async (req, res) => {
       [accountId, email]
     );
     if (accountUser.rows.length === 0) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "User to add must have access to this account to become its owner",
-        });
+      return res.status(403).json({
+        message:
+          "User to add must have access to this account to become its owner",
+      });
     }
 
     //Give the user access
