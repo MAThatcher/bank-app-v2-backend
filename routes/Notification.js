@@ -7,7 +7,6 @@ const pool = require("../db");
 router.get("/", authenticateToken, async (req, res) => {
   try {
     let userId = req.user.user.id;
-    console.log(email);
     const result = await pool.query(
       `select * from notifications where user_id = $1 order by create_date`,
       [userId]
