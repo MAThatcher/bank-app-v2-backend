@@ -88,7 +88,7 @@ router.post("/register", async (req, res) => {
     if (userExists.rows.length > 0) {
       return res.status(400).json({ error: "Email is already registered" });
     }
-    const token = jwt.sign({ email }, process.env.JWT_KEY, { expiresIn: "1h" });
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await pool.query("BEGIN");
