@@ -111,6 +111,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
+//verify user
 router.get("/verify-email/:token", async (req, res) => {
   const { token } = req.params;
 

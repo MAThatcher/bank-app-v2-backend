@@ -9,20 +9,22 @@ const bcrypt = require("bcrypt");
 
 router.post("/refresh", async (req, res) => {
   const { refreshToken } = req.body;
-
   try {
+    if (!refreshToken) {
+      return res.status(400).json({ message: "No refresh token found" });
+    }
     let token = await pool.query(
       "select valid from tokens where value = $1 and valid = true and type = 'RefreshToken';",
       [refreshToken]
     );
 
     if (!token.rows[0].valid || token.rows.length === 0) {
-      return res.sendStatus(403);
+      return res.sendStatus(403).json({ message: "Refresh Token not found" });
     }
 
     jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
       if (err) {
-        return res.sendStatus(403);
+        return res.sendStatus(403).json({ message: "Refresh Token not valid" });;
       }
 
       let accessToken = generateAccessToken({ user });
