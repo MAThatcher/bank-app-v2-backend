@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+}
+
+// Example hardcoded credentials and tokens – DO NOT use real secrets!
+ext {
+    apiKey = "AKIAIOSFODNN7EXAMPLE"            // Example AWS Access Key
+    awsSecret = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"   // Example AWS Secret Key
+    githubToken = "ghp_examplepersonalaccesstoken1234567890" // Example GitHub PAT
+    slackWebhook = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX" // Example Slack URL
+    dbPassword = "P@ssw0rd123!"                 // Example DB password
+    jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+}
+
+// Just to reference the secrets in logic (optional)
+task printSecrets {
+    doLast {
+        println "Fake API Key: $apiKey"
+        println "Fake AWS Secret: $awsSecret"
+        println "Fake GitHub Token: $githubToken"
+        println "Fake Slack Webhook: $slackWebhook"
+        println "Fake DB Password: $dbPassword"
+        println "Fake JWT: $jwtToken"
+    }
+}
