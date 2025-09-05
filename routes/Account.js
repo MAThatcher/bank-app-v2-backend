@@ -26,8 +26,9 @@ router.get("/:accountId", authenticateToken, async (req, res) => {
 
     let validUser = await pool.query(
       "select * from account_users where account_id = $1 and archived = false",
-      [userId]
+      [accountId]
     );
+    console.log(validUser)
     if (validUser.rows.length === 0) {
       return res
         .status(404)
@@ -146,7 +147,7 @@ router.post("/addUser", authenticateToken, async (req, res) => {
       "Select * from account_users where account_id = $1 and user_id = $2 and archived = false",
       [accountId, newUser.rows[0].id]
     );
-    if (hasAccess.rows.length === 0) {
+    if (hasAccess.rows.length !== 0) {
       return res.status(403).json({ message: "User has access all ready" });
     }
 
@@ -210,6 +211,40 @@ router.post("/transferOwnership", authenticateToken, async (req, res) => {
     await pool.query("ROLLBACK");
     console.error(error);
     return res.status(500).json({ error: "Error changing owner" });
+  }
+});
+
+router.post("/overdraft", authenticateToken, async (req, res) => {
+  const { accountId, overdraft } = req.body;
+  try {
+    let userId = req.user.user.id;
+
+    //is the logged in user the owner of this account whos overdraft is being changed?
+    const result = await pool.query(
+      "select * from accounts where owner = $1 and archived = false and id = $2",
+      [userId, accountId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        message: "Unauthorized: Must be accounts owner to change overdraft",
+      });
+    }
+
+    //update the overdraft
+    await pool.query("BEGIN");
+    await pool.query("update accounts set overdraft = $1 where id = $2;", [
+      overdraft,
+      accountId,
+    ]);
+    await pool.query("COMMIT");
+    return res
+      .status(201)
+      .json({ message: "Overdraft changed successfully", accountId });
+  } catch
+  (error) {
+    await pool.query("ROLLBACK");
+    console.error(error);
+    return res.status(500).json({ error: "Error changing overdraft" });
   }
 });
 

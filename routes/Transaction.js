@@ -52,7 +52,7 @@ router.post("/", authenticateToken, async (req, res) => {
     );
     let overdraft = check.rows[0].overdraft;
     let balance = parseInt(check.rows[0].balance);
-    if (!overdraft && balance + transactionAmount < 0) {
+    if (!overdraft && balance + parseInt(transactionAmount) < 0) {
       return res
         .status(401)
         .json({
@@ -71,7 +71,7 @@ router.post("/", authenticateToken, async (req, res) => {
       "Select balance from accounts where id = $1",
       [accountId]
     );
-    newAmount = parseInt(newAmount.rows[0].balance) + transactionAmount;
+    newAmount = parseInt(newAmount.rows[0].balance) + parseInt(transactionAmount);
     await pool.query("update accounts set balance = $1 where id = $2;", [
       newAmount,
       accountId,
