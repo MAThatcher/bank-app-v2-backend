@@ -240,8 +240,8 @@ router.post("/overdraft", authenticateToken, async (req, res) => {
     return res
       .status(201)
       .json({ message: "Overdraft changed successfully", accountId });
-  }catch 
-(error) {
+  } catch
+  (error) {
     await pool.query("ROLLBACK");
     console.error(error);
     return res.status(500).json({ error: "Error changing overdraft" });
