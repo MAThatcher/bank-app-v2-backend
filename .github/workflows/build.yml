@@ -29,7 +29,7 @@ jobs:
     # - run: npm test
 
     - name: SonarQube Scan
-      uses: SonarSource/sonarqube-scan-action
+      uses: SonarSource/sonarqube-scan-action@v4.1.0
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
