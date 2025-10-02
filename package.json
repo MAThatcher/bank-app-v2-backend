@@ -37,6 +37,7 @@
       "^.+\\.js$": "babel-jest"
     },
     "testEnvironment": "node",
+    "setupFiles": ["<rootDir>/test/setup-nodemailer.js"],
     "transformIgnorePatterns": [
       "/node_modules/(?!(chai-http)/)"
     ]

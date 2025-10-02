@@ -31,9 +31,7 @@ app.get("/", (req, res) => {
 module.exports = app;
 
 if (require.main === module) {
-  /* istanbul ignore next */
   const PORT = process.env.PORT || 5000;
-  /* istanbul ignore next */
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log('JWT_SECRET loaded:', process.env.JWT_SECRET ? 'yes' : 'no');
