@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const pool = require("../db");
+const pool = require("../config/db");
 
 const generateAccessToken =  (user) => {
   try {
@@ -12,6 +12,7 @@ const generateAccessToken =  (user) => {
     return token;
   }
   catch (err){
+    console.log(err);
     pool.query("ROLLBACK");
     return null;
   }
@@ -26,6 +27,7 @@ const generateRefreshToken =  (user) => {
     return token;
   }
   catch (err){
+    console.log(err);
     pool.query("ROLLBACK");
     return null;
   }

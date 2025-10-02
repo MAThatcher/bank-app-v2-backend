@@ -1,3 +1,6 @@
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, 'config', '.env') });
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -8,12 +11,12 @@ app.use(bodyParser.json());
 app.use(cors());
 app.disable("x-powered-by");
 
-const dashboardRoutes = require("./routes/Dashboard");
-const userRoutes = require("./routes/Users");
-const authRoutes = require("./routes/Auth");
-const accountRoutes = require("./routes/Account");
-const transactionRoutes = require("./routes/Transaction");
-const notificationRoutes = require("./routes/Notification");
+const accountRoutes = require("./routes/accounts.routes");
+const authRoutes = require("./routes/auth.routes");
+const dashboardRoutes = require("./routes/dashboard.routes.js");
+const notificationRoutes = require("./routes/notifications.routes");
+const transactionRoutes = require("./routes/transactions.routes");
+const userRoutes = require("./routes/users.routes");
 
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/users", userRoutes);
@@ -33,5 +36,7 @@ if (require.main === module) {
   /* istanbul ignore next */
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log('JWT_SECRET loaded:', process.env.JWT_SECRET ? 'yes' : 'no');
+    console.log('Env file used:', path.resolve(__dirname, 'config', '.env'));
   });
 }
