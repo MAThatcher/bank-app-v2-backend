@@ -1,8 +1,9 @@
 {
   "name": "bank-app-v2-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
+    "start": "node src/index.js",
     "test": "jest --coverage --detectOpenHandles"
   },
   "keywords": [],
@@ -36,6 +37,7 @@
       "^.+\\.js$": "babel-jest"
     },
     "testEnvironment": "node",
+    "setupFiles": ["<rootDir>/test/setup-nodemailer.js"],
     "transformIgnorePatterns": [
       "/node_modules/(?!(chai-http)/)"
     ]
