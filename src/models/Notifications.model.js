@@ -8,22 +8,22 @@ const wrapRows = (data) => {
 
 module.exports = {
     getNotificationsForUser: async (userId) => {
-        const rows = await prisma.notifications.findMany({ where: { user_id: Number(userId) }, orderBy: { create_date: 'asc' } });
+        const rows = await prisma.notifications.findMany({ where: { user_id: Number(userId), dismissed: Boolean(false) }, orderBy: { create_date: 'asc' } });
         return wrapRows(rows);
     },
 
     getNotificationById: async (userId, notificationId) => {
-        const row = await prisma.notifications.findFirst({ where: { user_id: Number(userId), id: Number(notificationId) } });
+        const row = await prisma.notifications.findFirst({ where: { user_id: Number(userId), id: Number(notificationId), dismissed: Boolean(false) } });
         return wrapRows(row);
     },
 
     dismissNotification: async (userId, notificationId) => {
-        await prisma.notifications.updateMany({ where: { user_id: Number(userId), id: Number(notificationId) }, data: { dismissed: true, update_date: new Date() } });
-        return { rows: [] };
+        const row = await prisma.notifications.updateMany({ where: { user_id: Number(userId), id: Number(notificationId) }, data: { dismissed: true, update_date: new Date() } });
+        return wrapRows(row);
     },
 
     createNotification: async (message, userId) => {
-        await prisma.notifications.create({ data: { message, user_id: Number(userId) } });
-        return { rows: [] };
+        const row = await prisma.notifications.create({ data: { message, user_id: Number(userId) } });
+        return wrapRows(row);
     },
 };

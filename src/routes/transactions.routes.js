@@ -5,5 +5,45 @@ const TransactionsController = require('../controllers/transactions.controller')
 
 router.get('/account/:accountId', authenticateToken, TransactionsController.getTransactions);
 router.post('/', authenticateToken, TransactionsController.createTransaction);
+//TODO
+// router.get('/:transactionId', authenticateToken, TransactionsController.getTransactionById);
+// router.delete('/:transactionId', authenticateToken, TransactionsController.deleteTransaction);
+// router.patch('/:transactionId', authenticateToken, TransactionsController.updateTransaction);
+// router.get('/user/:userId', authenticateToken, TransactionsController.getTransactionsByUser);
+// router.get('/date-range', authenticateToken, TransactionsController.getTransactionsByDateRange);
+// router.get('/recent', authenticateToken, TransactionsController.getRecentTransactions);
+// router.get('/search', authenticateToken, TransactionsController.searchTransactions);
+// router.get('/summary', authenticateToken, TransactionsController.getTransactionSummary);
+// router.get('/monthly-report', authenticateToken, TransactionsController.getMonthlyReport);
+// router.get('/yearly-report', authenticateToken, TransactionsController.getYearlyReport);
+// router.get('/export', authenticateToken, TransactionsController.exportTransactions);
+// router.post('/import', authenticateToken, TransactionsController.importTransactions);
+// router.get('/statistics', authenticateToken, TransactionsController.getTransactionStatistics);
+// router.get('/categories', authenticateToken, TransactionsController.getTransactionCategories);
+// router.post('/categories', authenticateToken, TransactionsController.addTransactionCategory);
+// router.delete('/categories/:categoryId', authenticateToken, TransactionsController.deleteTransactionCategory);
+// router.patch('/categories/:categoryId', authenticateToken, TransactionsController.updateTransactionCategory);
+// router.get('/tags', authenticateToken, TransactionsController.getTransactionTags);
+// router.post('/tags', authenticateToken, TransactionsController.addTransactionTag);
+// router.delete('/tags/:tagId', authenticateToken, TransactionsController.deleteTransactionTag);
+// router.patch('/tags/:tagId', authenticateToken, TransactionsController.updateTransactionTag);
+// router.get('/tags/:tagId/transactions', authenticateToken, TransactionsController.getTransactionsByTag);
+// router.post('/bulk', authenticateToken, TransactionsController.bulkCreateTransactions);
+// router.delete('/bulk', authenticateToken, TransactionsController.bulkDeleteTransactions);
+// router.patch('/bulk', authenticateToken, TransactionsController.bulkUpdateTransactions);
+// router.get('/recurring', authenticateToken, TransactionsController.getRecurringTransactions);
+// router.post('/recurring', authenticateToken, TransactionsController.createRecurringTransaction);
+// router.delete('/recurring/:recurringId', authenticateToken, TransactionsController.deleteRecurringTransaction);
+// router.patch('/recurring/:recurringId', authenticateToken, TransactionsController.updateRecurringTransaction);
+// router.get('/recurring/:recurringId', authenticateToken, TransactionsController.getRecurringTransactionById);
+// router.post('/recurring/:recurringId/execute', authenticateToken, TransactionsController.executeRecurringTransaction);
+// router.post('/dispute/:transactionId', authenticateToken, TransactionsController.disputeTransaction);
+// router.post('/resolve-dispute/:transactionId', authenticateToken, TransactionsController.resolveTransactionDispute);
+// router.get('/disputes', authenticateToken, TransactionsController.getDisputedTransactions);
+// router.get('/disputes/:disputeId', authenticateToken, TransactionsController.getDisputeById);
+// router.patch('/disputes/:disputeId', authenticateToken, TransactionsController.updateDispute);
+// router.delete('/disputes/:disputeId', authenticateToken, TransactionsController.deleteDispute);
+// router.post('/tags/:tagId/assign', authenticateToken, TransactionsController.assignTagToTransaction);
+// router.post('/tags/:tagId/remove', authenticateToken, TransactionsController.removeTagFromTransaction);
 
 module.exports = router;

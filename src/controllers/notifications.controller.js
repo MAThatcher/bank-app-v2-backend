@@ -55,5 +55,46 @@ module.exports = {
             console.error(err.message);
             return res.status(500).send('Server Error');
         }
-    }
+    },
+    //TODO
+    dismissAllNotifications: async (req, res) => {
+        try {
+            let userId = req.user.user.id;
+            const result = await NotificationsModel.dismissAllNotifications(userId);        
+    } catch (err) {
+            console.error(err.message);
+            return res.status(500).send('Server Error');
+        }
+    },
+    getUnreadCount: async (req, res) => {
+        try {
+            let userId = req.user.user.id;
+            const result = await NotificationsModel.getUnreadCount(userId);
+            return res.status(200).json(result.rows);
+        } catch (err) {
+            console.error(err.message);
+            return res.status(500).send('Server Error');
+        }
+    },
+    getUnreadNotifications: async (req, res) => {
+        try {
+            let userId = req.user.user.id;
+            const result = await NotificationsModel.getUnreadNotifications(userId);
+            return res.status(200).json(result.rows);
+        } catch (err) {
+            console.error(err.message);
+            return res.status(500).send('Server Error');
+        }
+    },
+    getNotificationsByType: async (req, res) => {
+        const { type } = req.params;
+        try {
+            let userId = req.user.user.id;
+            const result = await NotificationsModel.getNotificationsByType(userId, type);
+            return res.status(200).json(result.rows);
+        } catch (err) {
+            console.error(err.message);
+            return res.status(500).send('Server Error');
+        }
+    },
 };

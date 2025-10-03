@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const logger = require('../Utilities/logger');
 
 const transporter = nodemailer.createTransport({
   service: "Gmail",
@@ -37,7 +38,7 @@ const sendResetEmail = async (token, email) => {
   try {
     await transporter.sendMail(mailOptions);
   } catch (err) {
-    console.log({ "Send Reset email Error": err })
+    logger.error('Send Reset email Error: %o', err);
   }
 }
 

@@ -1,11 +1,3 @@
-/**
- * Prisma-backed implementation of the Accounts model.
- *
- * This file preserves the same function names and return shapes as the previous
- * Postgres/pool-based implementation so controllers and unit tests don't need
- * to change. Each function returns an object { rows: [...] } (or resolves to
- * a value) to match existing usage.
- */
 const prisma = require('../prisma/client');
 
 const wrapRows = (data) => {
@@ -50,13 +42,13 @@ module.exports = {
 
     getAccountUsersByAccountId: async (accountId) => {
         const rows = await prisma.account_users.findMany({
-            where: { account_id: Number(accountId), archived: false },
+            where: { account_id: Number(accountId), archived: Boolean(false) },
         });
         return wrapRows(rows);
     },
 
     getAccountById: async (accountId) => {
-        const row = await prisma.accounts.findUnique({ where: { id: Number(accountId) } });
+        const row = await prisma.accounts.findUnique({ where: { id: Number(accountId), archived: Boolean(false) } });
         return wrapRows(row);
     },
 
@@ -78,7 +70,7 @@ module.exports = {
     getAccountOwnerAndBalance: async (userId, accountId) => {
         const rows = await prisma.accounts.findMany({
             where: { owner: Number(userId), id: Number(accountId) },
-            select: { balance: true, owner: true },
+            select: { balance: true, owner: true, archived: Boolean(false) },
         });
         return wrapRows(rows);
     },
@@ -136,12 +128,12 @@ module.exports = {
     },
 
     updateOwner: async (newOwnerId, accountId, tx = prisma) => {
-        await tx.accounts.update({ where: { id: Number(accountId) }, data: { owner: Number(newOwnerId) } });
+        await tx.accounts.update({ where: { id: Number(accountId), archived: Boolean(false)  }, data: { owner: Number(newOwnerId) } });
         return { rows: [] };
     },
 
     updateOverdraft: async (overdraft, accountId, tx = prisma) => {
-        await tx.accounts.update({ where: { id: Number(accountId) }, data: { overdraft } });
+        await tx.accounts.update({ where: { id: Number(accountId), archived: Boolean(false)  }, data: { overdraft: Boolean(overdraft) } });
         return { rows: [] };
     },
 };

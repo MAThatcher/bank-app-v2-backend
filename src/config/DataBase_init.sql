@@ -1,94 +1,167 @@
-drop table if exists user_details;
-drop table if exists account_users;
-drop table if exists transactions;
-drop table if exists accounts;
-drop table if exists notifications;
-drop table if exists tokens;
-drop table if exists users;
-
-create table if not exists users (
-	id serial primary key,
-	email varchar(255) unique null,
-	password varchar(255) not null,
-	archived boolean default false,
-	create_date timestamp default current_timestamp,
-	update_date timestamp default current_timestamp,
-	super_user boolean default false,
-	archived_email varchar(255) default null,
-	verified boolean default false
-);
-create table if not exists user_details (
-	id serial primary key,
-	fname varchar(255) null,
-	mname varchar(255) null,
-	lname varchar(255) null,
-	address_street varchar(255) null,
-	address_city varchar(255) null,
-	address_state CHAR(2) null,
-	address_zip numeric(5,0) null,
-	create_date timestamp default current_timestamp,
-	update_date timestamp default current_timestamp,
-	user_id int not null,
-	CONSTRAINT fk_users FOREIGN KEY (user_id)
-	REFERENCES users(id)
-);
-create table if not exists accounts(
-	id serial primary key,
-	name varchar(255) default 'Account',
-	create_date timestamp default current_timestamp,
-	update_date timestamp default current_timestamp,
-	owner int,
-	balance numeric(13,2) default 0,
-	overdraft boolean default false,
-	archived boolean default false,
-	type varchar(255),
-	constraint fk_users foreign key (owner)
-	references users(id)
-);
-create table if not exists transactions(
-	id serial primary key,
-	create_date timestamp default current_timestamp,
-	update_date timestamp default current_timestamp,
-	account_id int not null,
-	description varchar(1020) not null,
-	user_id int not null,
-	amount numeric(13,2) not null,
-	archived boolean default false,
-	constraint fk_accounts foreign key (account_id)
-	references accounts(id),
-	constraint fk_users foreign key (user_id)
-	references users(id)
-);
-create table if not exists account_users(
-	id serial primary key,
-	create_date timestamp default current_timestamp,
-	update_date timestamp default current_timestamp,
-	user_id int,
-	account_id int,
-	archived boolean default false,
-	constraint fk_accounts foreign key (account_id)
-	references accounts(id),
-	constraint fk_users foreign key (user_id)
-	references users(id)
-);
-create table if not exists notifications(
-	id serial primary key,
-	message varchar(1020) not null,
-	create_date timestamp default current_timestamp,
-	update_date timestamp default current_timestamp,
-	user_id int not null,
-	dismissed boolean default false,
-	constraint fk_users foreign key (user_id)
-	references users(id)
-);
-create table if not exists tokens(
-	id serial primary key,
-	value varchar(1028) not null,
-	type varchar(64) default 'AccessToken',
-	create_date timestamp default current_timestamp,
-	expire_date timestamp default current_timestamp,
-	user_id int not null,
-	valid boolean default true,
-	constraint fk_users foreign key (user_id)
-	references users(id)
-);
+DROP TABLE IF EXISTS two_factor_auth;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS disputes;
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS tokens;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS account_users;
+DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS accounts;
+DROP TABLE IF EXISTS user_details;
+DROP TABLE IF EXISTS users;
+DROP TYPE IF EXISTS account_type;
+DROP TYPE IF EXISTS token_type;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'account_type') THEN
+        CREATE TYPE account_type AS ENUM ('Checkings', 'Savings');
+    END IF;
+	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'token_type') THEN
+        create type token_type as enum ('AccessToken','RefreshToken');
+    END IF;
+END
+$$;
+CREATE TABLE IF NOT EXISTS
+	users (
+		id serial PRIMARY KEY,
+		email VARCHAR(255) UNIQUE NULL,
+		PASSWORD VARCHAR(255) NOT NULL,
+		archived BOOLEAN DEFAULT FALSE,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		super_user BOOLEAN DEFAULT FALSE,
+		archived_email VARCHAR(255) DEFAULT NULL,
+		verified BOOLEAN DEFAULT FALSE
+	);
+CREATE TABLE IF NOT EXISTS
+	user_details (
+		id serial PRIMARY KEY,
+		fname VARCHAR(255) NULL,
+		mname VARCHAR(255) NULL,
+		lname VARCHAR(255) NULL,
+		address_street VARCHAR(255) NULL,
+		address_city VARCHAR(255) NULL,
+		address_state CHAR(2) NULL,
+		address_zip NUMERIC(5, 0) NULL,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		user_id INT NOT NULL,
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	accounts (
+		id serial PRIMARY KEY,
+		NAME VARCHAR(255) DEFAULT 'Account',
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		OWNER INT NOT NULL,
+		balance NUMERIC(13, 2) DEFAULT 0,
+		overdraft BOOLEAN DEFAULT FALSE,
+		archived BOOLEAN DEFAULT FALSE,
+		TYPE account_type DEFAULT 'Checkings',
+		CONSTRAINT fk_users FOREIGN KEY (OWNER) REFERENCES users (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	transactions (
+		id serial PRIMARY KEY,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		account_id INT NOT NULL,
+		description VARCHAR(1020) NOT NULL,
+		user_id INT NOT NULL,
+		amount NUMERIC(13, 2) NOT NULL,
+		archived BOOLEAN DEFAULT FALSE,
+		category VARCHAR(1020) NOT NULL,
+		CONSTRAINT fk_accounts FOREIGN KEY (account_id) REFERENCES accounts (id),
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	tags (
+		id serial PRIMARY KEY,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		archived BOOLEAN DEFAULT FALSE,
+		tag VARCHAR(128),
+		transaction_id INT,
+		account_id INT,
+		CONSTRAINT fk_accounts FOREIGN KEY (account_id) REFERENCES accounts (id),
+		CONSTRAINT fk_users FOREIGN KEY (transaction_id) REFERENCES transactions (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	account_users (
+		id serial PRIMARY KEY,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		user_id INT,
+		account_id INT,
+		archived BOOLEAN DEFAULT FALSE,
+		CONSTRAINT fk_accounts FOREIGN KEY (account_id) REFERENCES accounts (id),
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	notifications (
+		id serial PRIMARY KEY,
+		message VARCHAR(1020) NOT NULL,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		user_id INT NOT NULL,
+		dismissed BOOLEAN DEFAULT FALSE,
+		TYPE VARCHAR(1020) DEFAULT NULL,
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	tokens (
+		id serial PRIMARY KEY,
+		VALUE VARCHAR(1028) NOT NULL,
+		TYPE token_type DEFAULT 'AccessToken',
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		expire_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		user_id INT NOT NULL,
+		VALID BOOLEAN DEFAULT FALSE,
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	disputes (
+		id serial PRIMARY KEY,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		user_id INT NOT NULL,
+		transaction_id INT NOT NULL,
+		status VARCHAR(255) DEFAULT 'Open',
+		reason VARCHAR(1020) NOT NULL,
+		details VARCHAR(2048) DEFAULT NULL,
+		resolution VARCHAR(2048) DEFAULT NULL,
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id),
+		CONSTRAINT fk_transactions FOREIGN KEY (transaction_id) REFERENCES transactions (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	audit_logs (
+		id serial PRIMARY KEY,
+		ACTION VARCHAR(255) NOT NULL,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		user_id INT NOT NULL,
+		details VARCHAR(2048) DEFAULT NULL,
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	sessions (
+		id serial PRIMARY KEY,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		user_id INT NOT NULL,
+		ip_address VARCHAR(45) NOT NULL,
+		user_agent VARCHAR(512) DEFAULT NULL,
+		VALID BOOLEAN DEFAULT TRUE,
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id)
+	);
+CREATE TABLE IF NOT EXISTS
+	two_factor_auth (
+		id serial PRIMARY KEY,
+		user_id INT UNIQUE NOT NULL,
+		secret VARCHAR(255) NOT NULL,
+		enabled BOOLEAN DEFAULT FALSE,
+		create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users (id)
+	);

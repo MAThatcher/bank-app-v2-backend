@@ -32,7 +32,7 @@ describe('Accounts Controller', () => {
 
     await controller.getAccounts(req, res);
     expect(res.json.calledOnce).to.be.true;
-    expect(res.json.firstCall.args[0]).to.deep.equal([{ id: 1 }]);
+    expect(res.json.firstCall.args[0]).to.deep.equal({ id: 1 });
   });
 
   it('getAccounts handles error', async () => {

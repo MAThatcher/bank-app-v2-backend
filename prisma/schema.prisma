@@ -23,13 +23,14 @@ model accounts {
   name          String?         @default("Account") @db.VarChar(255)
   create_date   DateTime?       @default(now()) @db.Timestamp(6)
   update_date   DateTime?       @default(now()) @db.Timestamp(6)
-  owner         Int?
+  owner         Int
   balance       Decimal?        @default(0) @db.Decimal(13, 2)
   overdraft     Boolean?        @default(false)
   archived      Boolean?        @default(false)
-  type          String?         @db.VarChar(255)
+  type          account_type?   @default(Checkings)
   account_users account_users[]
-  users         users?          @relation(fields: [owner], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+  users         users           @relation(fields: [owner], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+  tags          tags[]
   transactions  transactions[]
 }
 
@@ -40,31 +41,35 @@ model notifications {
   update_date DateTime? @default(now()) @db.Timestamp(6)
   user_id     Int
   dismissed   Boolean?  @default(false)
+  type        String?   @db.VarChar(1020)
   users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
 }
 
 model tokens {
-  id          Int       @id @default(autoincrement())
-  value       String    @db.VarChar(1028)
-  type        String?   @default("AccessToken") @db.VarChar(64)
-  create_date DateTime? @default(now()) @db.Timestamp(6)
-  expire_date DateTime? @default(now()) @db.Timestamp(6)
+  id          Int         @id @default(autoincrement())
+  value       String      @db.VarChar(1028)
+  type        token_type? @default(AccessToken)
+  create_date DateTime?   @default(now()) @db.Timestamp(6)
+  expire_date DateTime?   @default(now()) @db.Timestamp(6)
   user_id     Int
-  valid       Boolean?  @default(true)
-  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+  valid       Boolean?    @default(false)
+  users       users       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
 }
 
 model transactions {
-  id          Int       @id @default(autoincrement())
-  create_date DateTime? @default(now()) @db.Timestamp(6)
-  update_date DateTime? @default(now()) @db.Timestamp(6)
+  id          Int        @id @default(autoincrement())
+  create_date DateTime?  @default(now()) @db.Timestamp(6)
+  update_date DateTime?  @default(now()) @db.Timestamp(6)
   account_id  Int
-  description String    @db.VarChar(1020)
+  description String     @db.VarChar(1020)
   user_id     Int
-  amount      Decimal   @db.Decimal(13, 2)
-  archived    Boolean?  @default(false)
-  accounts    accounts  @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_accounts")
-  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+  amount      Decimal    @db.Decimal(13, 2)
+  archived    Boolean?   @default(false)
+  category    String     @db.VarChar(1020)
+  disputes    disputes[]
+  tags        tags[]
+  accounts    accounts   @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_accounts")
+  users       users      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
 }
 
 model user_details {
@@ -94,8 +99,67 @@ model users {
   verified       Boolean?        @default(false)
   account_users  account_users[]
   accounts       accounts[]
+  audit_logs     audit_logs[]
+  disputes       disputes[]
   notifications  notifications[]
+  sessions       sessions[]
   tokens         tokens[]
   transactions   transactions[]
   user_details   user_details[]
+}
+
+model audit_logs {
+  id          Int       @id @default(autoincrement())
+  action      String    @db.VarChar(255)
+  create_date DateTime? @default(now()) @db.Timestamp(6)
+  user_id     Int
+  details     String?   @db.VarChar(2048)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model disputes {
+  id             Int          @id @default(autoincrement())
+  create_date    DateTime?    @default(now()) @db.Timestamp(6)
+  update_date    DateTime?    @default(now()) @db.Timestamp(6)
+  user_id        Int
+  transaction_id Int
+  status         String?      @default("Open") @db.VarChar(255)
+  reason         String       @db.VarChar(1020)
+  details        String?      @db.VarChar(2048)
+  resolution     String?      @db.VarChar(2048)
+  transactions   transactions @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_transactions")
+  users          users        @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model sessions {
+  id          Int       @id @default(autoincrement())
+  create_date DateTime? @default(now()) @db.Timestamp(6)
+  update_date DateTime? @default(now()) @db.Timestamp(6)
+  user_id     Int
+  ip_address  String    @db.VarChar(45)
+  user_agent  String?   @db.VarChar(512)
+  valid       Boolean?  @default(true)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model tags {
+  id             Int           @id @default(autoincrement())
+  create_date    DateTime?     @default(now()) @db.Timestamp(6)
+  update_date    DateTime?     @default(now()) @db.Timestamp(6)
+  archived       Boolean?      @default(false)
+  tag            String?       @db.VarChar(128)
+  transaction_id Int?
+  account_id     Int?
+  accounts       accounts?     @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_accounts")
+  transactions   transactions? @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+enum account_type {
+  Checkings
+  Savings
+}
+
+enum token_type {
+  AccessToken
+  RefreshToken
 }

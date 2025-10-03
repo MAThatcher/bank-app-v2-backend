@@ -10,5 +10,10 @@ router.delete('/:accountId', authenticateToken, AccountsController.deleteAccount
 router.post('/:accountId/users', authenticateToken, AccountsController.addUserToAccount);
 router.patch('/:accountId/transfer-ownership', authenticateToken, AccountsController.transferOwnership);
 router.patch('/:accountId/overdraft', authenticateToken, AccountsController.changeOverdraft);
+//TODO
+router.delete('/:accountId/users', authenticateToken, AccountsController.removeUserFromAccount);
+router.patch('/:accountId', authenticateToken, AccountsController.updateAccountDetails);
+router.get('/:accountId/balance', authenticateToken, AccountsController.getAccountBalance);
+
 
 module.exports = router;

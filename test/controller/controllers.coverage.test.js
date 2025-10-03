@@ -258,7 +258,6 @@ describe('Controller coverage - exercise branches', () => {
         expect(res7.status.calledWith(201)).to.be.true;
     });
 
-    // Dashboard
     it('dashboard returns JSON', () => {
         const req = { user: { user: { id: 9 } } };
         const res = mockRes();
@@ -266,7 +265,6 @@ describe('Controller coverage - exercise branches', () => {
         expect(res.json.called).to.be.true;
     });
 
-    // Users controller
     it('users.deleteUser success and error', async () => {
         const req = { user: { user: { email: 'u@v.com' } } };
         const res = mockRes();

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const prisma = require('../prisma/client');
+const logger = require('../Utilities/logger');
 
 const generateAccessToken = (user) => {
   try {
@@ -11,7 +12,7 @@ const generateAccessToken = (user) => {
     });
     return token;
   } catch (err) {
-    console.log(err);
+    logger.error('generateAccessToken error: %o', err);
     return null;
   }
 };
@@ -25,7 +26,7 @@ const generateRefreshToken = (user) => {
     });
     return token;
   } catch (err) {
-    console.log(err);
+    logger.error('generateRefreshToken error: %o', err);
     return null;
   }
 };
@@ -38,7 +39,7 @@ const authenticateToken = (req, res, next) => {
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      console.log(err);
+      logger.error('authenticateToken verify error: %o', err);
       return res.status(403).json({ error: "Invalid or expired token" });
     }
     req.user = user;
