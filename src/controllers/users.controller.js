@@ -68,7 +68,7 @@ module.exports = {
             const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
             const hashedPassword = await bcrypt.hash(password, 10);
-            
+
             await require('../prisma/client').runTransaction(async (tx) => {
                 await sendVerificationEmail(email, token);
                 let newUserId = await UsersModel.insertUser(email, hashedPassword, tx);

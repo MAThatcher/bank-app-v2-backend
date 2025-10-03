@@ -15,7 +15,6 @@ describe('Transactions Model - full', () => {
     sinon.stub(prisma.accounts, 'findUnique').resolves({ overdraft: true, balance: 10 });
     sinon.stub(prisma.accounts, 'update').resolves({});
 
-  // legacy lifecycle calls removed
     await TransactionsModel.checkUserAccountAccess(1, 2);
     await TransactionsModel.getTransactionsByAccount(1);
     await TransactionsModel.insertTransaction(10, 1, 2, 'd');

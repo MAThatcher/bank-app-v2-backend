@@ -44,14 +44,14 @@ describe('Users Controller', () => {
     it('deletes the user when authorized', async () => {
       const req = { params: { email: 'a@b.com' }, user: { user: { email: 'a@b.com' } } };
       const res = mockRes();
-  const prisma = require('../../src/prisma/client');
-  sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
+      const prisma = require('../../src/prisma/client');
+      sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
       sinon.stub(UsersModel, 'softDeleteUserByEmail').resolves();
 
       await usersController.deleteUser(req, res);
 
-  expect(prisma.runTransaction.calledOnce).to.be.true;
-  expect(UsersModel.softDeleteUserByEmail.calledWith('a@b.com')).to.be.true;
+      expect(prisma.runTransaction.calledOnce).to.be.true;
+      expect(UsersModel.softDeleteUserByEmail.calledWith('a@b.com')).to.be.true;
       expect(res.json.calledOnce).to.be.true;
       expect(res.json.firstCall.args[0]).to.deep.equal({ message: 'User Deleted Successfully' });
     });
@@ -59,8 +59,8 @@ describe('Users Controller', () => {
     it('rolls back and returns 500 on error', async () => {
       const req = { params: { email: 'a@b.com' }, user: { user: { email: 'a@b.com' } } };
       const res = mockRes();
-  const prisma = require('../../src/prisma/client');
-  sinon.stub(prisma, 'runTransaction').rejects(new Error('db'));
+      const prisma = require('../../src/prisma/client');
+      sinon.stub(prisma, 'runTransaction').rejects(new Error('db'));
       sinon.stub(UsersModel, 'softDeleteUserByEmail').throws(new Error('db'));
 
       await usersController.deleteUser(req, res);
@@ -174,17 +174,17 @@ describe('Users Controller', () => {
       sinon.stub(UsersModel, 'findUserByEmail').resolves({ rows: [] });
       sinon.stub(jwt, 'sign').returns('tok');
       sinon.stub(bcrypt, 'hash').resolves('hashed');
-    const prisma = require('../../src/prisma/client');
-    sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
-    sinon.stub(UsersModel, 'insertUser').resolves({ rows: [{ id: 10 }] });
-    sinon.stub(UsersModel, 'insertUserDetails').resolves();
+      const prisma = require('../../src/prisma/client');
+      sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
+      sinon.stub(UsersModel, 'insertUser').resolves({ rows: [{ id: 10 }] });
+      sinon.stub(UsersModel, 'insertUserDetails').resolves();
 
-  await usersController.register(req, res);
+      await usersController.register(req, res);
 
-  expect(UsersModel.insertUser.calledOnce).to.be.true;
-  expect(prisma.runTransaction.calledOnce).to.be.true;
-  expect(res.status.calledOnceWith(201)).to.be.true;
-  expect(res.json.firstCall.args[0]).to.deep.equal({ message: 'Verification email sent. Please check your inbox.' });
+      expect(UsersModel.insertUser.calledOnce).to.be.true;
+      expect(prisma.runTransaction.calledOnce).to.be.true;
+      expect(res.status.calledOnceWith(201)).to.be.true;
+      expect(res.json.firstCall.args[0]).to.deep.equal({ message: 'Verification email sent. Please check your inbox.' });
     });
 
     it('rolls back and returns 500 on error', async () => {
@@ -194,9 +194,9 @@ describe('Users Controller', () => {
       sinon.stub(UsersModel, 'findUserByEmail').resolves({ rows: [] });
       sinon.stub(jwt, 'sign').returns('tok');
       sinon.stub(bcrypt, 'hash').resolves('hashed');
-  const prisma = require('../../src/prisma/client');
-  sinon.stub(prisma, 'runTransaction').rejects(new Error('db'));
-  sinon.stub(UsersModel, 'insertUser').throws(new Error('db'));
+      const prisma = require('../../src/prisma/client');
+      sinon.stub(prisma, 'runTransaction').rejects(new Error('db'));
+      sinon.stub(UsersModel, 'insertUser').throws(new Error('db'));
 
       await usersController.register(req, res);
 
@@ -211,29 +211,29 @@ describe('Users Controller', () => {
       const req = { params: { token: 'tok' } };
       const res = mockRes();
 
-  sinon.stub(jwt, 'verify').returns({ email: 'a@b.com' });
-  const prisma = require('../../src/prisma/client');
-  sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
-  sinon.stub(UsersModel, 'setVerifiedByEmail').resolves();
+      sinon.stub(jwt, 'verify').returns({ email: 'a@b.com' });
+      const prisma = require('../../src/prisma/client');
+      sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
+      sinon.stub(UsersModel, 'setVerifiedByEmail').resolves();
 
-  await usersController.verifyEmail(req, res);
+      await usersController.verifyEmail(req, res);
 
-  expect(prisma.runTransaction.calledOnce).to.be.true;
-  expect(UsersModel.setVerifiedByEmail.calledOnce).to.be.true;
-  expect(res.status.calledOnceWith(200)).to.be.true;
-  expect(res.json.firstCall.args[0]).to.deep.equal({ message: 'Email successfully verified.' });
+      expect(prisma.runTransaction.calledOnce).to.be.true;
+      expect(UsersModel.setVerifiedByEmail.calledOnce).to.be.true;
+      expect(res.status.calledOnceWith(200)).to.be.true;
+      expect(res.json.firstCall.args[0]).to.deep.equal({ message: 'Email successfully verified.' });
     });
 
     it('rolls back and returns 500 on error', async () => {
       const req = { params: { token: 'bad' } };
       const res = mockRes();
 
-  sinon.stub(jwt, 'verify').throws(new Error('invalid'));
+      sinon.stub(jwt, 'verify').throws(new Error('invalid'));
 
-  await usersController.verifyEmail(req, res);
+      await usersController.verifyEmail(req, res);
 
-  expect(res.status.calledOnceWith(500)).to.be.true;
-  expect(res.json.firstCall.args[0]).to.deep.equal({ error: 'Server Error' });
+      expect(res.status.calledOnceWith(500)).to.be.true;
+      expect(res.json.firstCall.args[0]).to.deep.equal({ error: 'Server Error' });
     });
   });
 });

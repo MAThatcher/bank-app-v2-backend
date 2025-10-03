@@ -43,9 +43,9 @@ describe('Accounts Controller - extra', () => {
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [{ id: 1 }] });
     sinon.stub(AccountsModel, 'findAccountUserIdByEmail').resolves({ rows: [{ id: 9 }] });
-  const prisma = require('../../src/prisma/client');
-  sinon.stub(prisma, 'runTransaction').resolves();
-  sinon.stub(AccountsModel, 'updateOwner').resolves();
+    const prisma = require('../../src/prisma/client');
+    sinon.stub(prisma, 'runTransaction').resolves();
+    sinon.stub(AccountsModel, 'updateOwner').resolves();
     await controller.transferOwnership(req, res);
     expect(res.status.calledOnceWith(200)).to.be.true;
   });
@@ -62,9 +62,9 @@ describe('Accounts Controller - extra', () => {
     const req = { params: { accountId: 1 }, body: { overdraft: true }, user: { user: { id: 5 } } };
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [{ id: 1 }] });
-  const prisma = require('../../src/prisma/client');
-  sinon.stub(prisma, 'runTransaction').resolves();
-  sinon.stub(AccountsModel, 'updateOverdraft').resolves();
+    const prisma = require('../../src/prisma/client');
+    sinon.stub(prisma, 'runTransaction').resolves();
+    sinon.stub(AccountsModel, 'updateOverdraft').resolves();
     await controller.changeOverdraft(req, res);
     expect(res.status.calledOnceWith(200)).to.be.true;
   });

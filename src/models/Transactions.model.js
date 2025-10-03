@@ -7,8 +7,6 @@ const wrapRows = (data) => {
 };
 
 module.exports = {
-    // Legacy lifecycle methods removed; use prisma.runTransaction and pass
-    // `tx` into model functions when transactional behavior is required.
 
     checkUserAccountAccess: async (userId, accountId) => {
         const rows = await prisma.account_users.findMany({ where: { user_id: Number(userId), account_id: Number(accountId), archived: false }, select: { id: true } });

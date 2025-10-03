@@ -8,13 +8,11 @@
  */
 const prisma = require('../prisma/client');
 
-// Helper to normalise Prisma results into { rows: [...] } with plain JS numbers
 const wrapRows = (data) => {
     if (!data) return { rows: [] };
     if (Array.isArray(data)) {
         return {
             rows: data.map((r) => {
-                // map Decimal fields (balance, amount, etc.) to numbers where present
                 const out = { ...r };
                 if (out.balance && typeof out.balance === 'object' && typeof out.balance.toNumber === 'function') {
                     out.balance = out.balance.toNumber();
@@ -23,14 +21,10 @@ const wrapRows = (data) => {
             }),
         };
     }
-    // single object
     return { rows: [data] };
 };
 
 module.exports = {
-    // (legacy lifecycle methods removed) use `prisma.runTransaction` from
-    // controllers to run multi-statement flows. Model methods accept an
-    // optional `tx` parameter to operate inside a transaction.
 
     getAccountsForUser: async (email) => {
         const rows = await prisma.accounts.findMany({
@@ -66,15 +60,11 @@ module.exports = {
         return wrapRows(row);
     },
 
-    // When running inside a transaction, callers can pass the transaction
-    // client as the third argument `tx`. If not provided the normal prisma
-    // client is used so existing non-transactional callers keep working.
     insertAccount: async (accountName, ownerId, tx = prisma) => {
         const created = await tx.accounts.create({
             data: { name: accountName, owner: Number(ownerId) },
             select: { id: true },
         });
-        // Match previous interface: return { rows: [{ id }] }
         return { rows: [{ id: created.id }] };
     },
 
@@ -90,7 +80,6 @@ module.exports = {
             where: { owner: Number(userId), id: Number(accountId) },
             select: { balance: true, owner: true },
         });
-        // Convert Decimal to number in wrapRows
         return wrapRows(rows);
     },
 
@@ -138,7 +127,6 @@ module.exports = {
     },
 
     findAccountUserIdByEmail: async (accountId, email) => {
-        // Find the user with the given email who has an account_user linking to accountId
         const user = await prisma.users.findFirst({
             where: { email, archived: false, account_users: { some: { account_id: Number(accountId) } } },
             select: { id: true },

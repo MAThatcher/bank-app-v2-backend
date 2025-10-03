@@ -9,22 +9,17 @@ describe('Accounts Model - full', () => {
   afterEach(() => sinon.restore());
 
   it('calls lifecycle methods and queries', async () => {
-    // stub the Prisma methods our model uses
-  sinon.stub(prisma.accounts, 'findMany').resolves([{ id: 1 }]);
-  sinon.stub(prisma.account_users, 'findMany').resolves([{ id: 1 }]);
+    sinon.stub(prisma.accounts, 'findMany').resolves([{ id: 1 }]);
+    sinon.stub(prisma.account_users, 'findMany').resolves([{ id: 1 }]);
     sinon.stub(prisma.accounts, 'findUnique').resolves({ id: 1 });
     sinon.stub(prisma.accounts, 'create').resolves({ id: 1 });
     sinon.stub(prisma.account_users, 'create').resolves({});
-  // reuse prisma.accounts.findMany stub for balance/owner queries by changing its behavior
-  prisma.accounts.findMany.resolves([{ balance: 0, owner: 1 }]);
+    prisma.accounts.findMany.resolves([{ balance: 0, owner: 1 }]);
     sinon.stub(prisma.account_users, 'updateMany').resolves({});
     sinon.stub(prisma.accounts, 'update').resolves({});
     sinon.stub(prisma.transactions, 'updateMany').resolves({});
     sinon.stub(prisma.users, 'findMany').resolves([{ id: 2 }]);
-  // ensure account_users.findMany can also be used for empty responses later
-  prisma.account_users.findMany.resolves([]);
-
-  // legacy lifecycle calls removed
+    prisma.account_users.findMany.resolves([]);
 
     await AccountsModel.getAccountsForUser('a@b.com');
     await AccountsModel.getAccountUsersByAccountId(1);
@@ -42,7 +37,6 @@ describe('Accounts Model - full', () => {
     await AccountsModel.updateOwner(2, 1);
     await AccountsModel.updateOverdraft(true, 1);
 
-    // basic assertion that at least one stub was called
     expect(prisma.accounts.findMany.called).to.be.true;
   });
 });

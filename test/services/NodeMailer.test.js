@@ -27,5 +27,6 @@ describe('NodeMailer', () => {
 
   it('sendResetEmail calls transporter and swallows errors', async () => {
     await NodeMailer.sendResetEmail('tok', 'a@b.com');
-    expect(this.sendMailStub.called).to.be.false;});
+    expect(this.sendMailStub.called).to.be.false;
+  });
 });

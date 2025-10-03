@@ -5,7 +5,6 @@ const prisma = require('../prisma/client');
 const generateAccessToken = (user) => {
   try {
     const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '15m' });
-    // Use a Prisma transaction to invalidate previous tokens and insert the new one
     prisma.runTransaction(async (tx) => {
       await tx.tokens.updateMany({ where: { user_id: Number(user.user.id), type: 'AccessToken', valid: true }, data: { valid: false } });
       await tx.tokens.create({ data: { value: token, user_id: Number(user.user.id), type: 'AccessToken', expire_date: new Date(Date.now() + 15 * 60 * 1000) } });

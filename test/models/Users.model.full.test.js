@@ -15,7 +15,6 @@ describe('Users Model - full', () => {
     sinon.stub(prisma.user_details, 'create').resolves({});
     sinon.stub(prisma.users, 'update').resolves({});
 
-  // legacy lifecycle calls removed
     await UsersModel.softDeleteUserByEmail('a@b.com');
     await UsersModel.getUserDetailsByEmail('a@b.com');
     await UsersModel.findUserByEmailVerified('a@b.com');

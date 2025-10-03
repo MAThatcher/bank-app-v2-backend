@@ -7,8 +7,6 @@ const wrapRows = (data) => {
 };
 
 module.exports = {
-    // Legacy lifecycle methods removed; use prisma.runTransaction and pass
-    // `tx` into model functions when transactional behavior is required.
 
     softDeleteUserByEmail: async (email, tx = prisma) => {
         await tx.users.updateMany({ where: { email }, data: { email: null, archived: true, archived_email: email, super_user: false, password: 'DELETED', update_date: new Date() } });

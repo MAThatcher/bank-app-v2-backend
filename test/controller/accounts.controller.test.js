@@ -126,20 +126,17 @@ describe('Accounts Controller', () => {
   it('addUserToAccount various flows', async () => {
     const req = { params: { accountId: 1 }, body: { email: 'x@y.com' }, user: { user: { id: 5 } } };
     const res = mockRes();
-    // unauthorized
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [] });
     await controller.addUserToAccount(req, res);
     expect(res.status.calledWith(401)).to.be.true;
     sinon.restore();
 
-    // user not found
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [{ id: 1 }] });
     sinon.stub(AccountsModel, 'findUserByEmail').resolves({ rows: [] });
     await controller.addUserToAccount(req, res);
     expect(res.status.calledWith(404)).to.be.true;
     sinon.restore();
 
-    // has access
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [{ id: 1 }] });
     sinon.stub(AccountsModel, 'findUserByEmail').resolves({ rows: [{ id: 2 }] });
     sinon.stub(AccountsModel, 'checkUserHasAccess').resolves({ rows: [{ id: 3 }] });
@@ -147,13 +144,12 @@ describe('Accounts Controller', () => {
     expect(res.status.calledWith(403)).to.be.true;
     sinon.restore();
 
-    // success
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [{ id: 1 }] });
     sinon.stub(AccountsModel, 'findUserByEmail').resolves({ rows: [{ id: 2 }] });
     sinon.stub(AccountsModel, 'checkUserHasAccess').resolves({ rows: [] });
     sinon.stub(AccountsModel, 'insertAccountUser').resolves();
-  const prisma = require('../../src/prisma/client');
-  sinon.stub(prisma, 'runTransaction').resolves();
+    const prisma = require('../../src/prisma/client');
+    sinon.stub(prisma, 'runTransaction').resolves();
     await controller.addUserToAccount(req, res);
     expect(res.status.calledWith(201)).to.be.true;
   });

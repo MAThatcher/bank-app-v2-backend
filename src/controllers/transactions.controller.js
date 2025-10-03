@@ -34,11 +34,6 @@ module.exports = {
                 return res.status(401).json({ error: 'Overdraft not allowed on this account. Balance cannot be less than 0' });
             }
 
-            // Preserve lifecycle calls for compatibility with existing tests
-            // while running the actual operations inside a Prisma transaction.
-            // Run the transaction logic inside a Prisma transaction and pass
-            // the transaction client `tx` into model functions so all queries
-            // operate in the same transactional context.
             await require('../prisma/client').runTransaction(async (tx) => {
                 await TransactionsModel.insertTransaction(transactionAmount, userId, accountId, description, tx);
                 let newAmount = await TransactionsModel.getBalanceForAccount(accountId, tx);
