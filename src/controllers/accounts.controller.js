@@ -5,7 +5,7 @@ module.exports = {
         try {
             let email = req.user.user.email;
             const result = await AccountsModel.getAccountsForUser(email);
-            return res.json(result.rows);
+            return res.status(200).json(result.rows);
         } catch (err) {
             console.error(err.message);
             return res.status(500).send('Server Error');
@@ -32,21 +32,24 @@ module.exports = {
         const { accountName } = req.body;
         try {
             let userId = req.user.user.id;
-            await AccountsModel.begin();
-            const result = await AccountsModel.insertAccount(accountName, userId);
-            const accountId = result.rows[0].id;
-            await AccountsModel.insertAccountUser(accountId, userId);
-            await AccountsModel.commit();
-            return res.status(201).json({ message: 'Account created successfully', accountId });
+            // Run the create account flow inside a prisma transaction. The
+            // transaction client `tx` is passed into the model methods so they
+            // run against the same transactional context.
+            const result = await require('../prisma/client').runTransaction(async (tx) => {
+                const created = await AccountsModel.insertAccount(accountName, userId, tx);
+                const accountId = created.rows[0].id;
+                await AccountsModel.insertAccountUser(accountId, userId, tx);
+                return accountId;
+            });
+            return res.status(201).json({ message: 'Account created successfully', accountId: result });
         } catch (error) {
-            await AccountsModel.rollback();
             console.error(error);
             return res.status(500).json({ error: 'Error creating account' });
         }
     },
 
     deleteAccount: async (req, res) => {
-        const { accountId } = req.body;
+        const { accountId } = req.params;
         try {
             let userId = req.user.user.id;
 
@@ -57,21 +60,21 @@ module.exports = {
                 return res.status(403).json({ error: 'Bank Balance must be 0 to delete.' });
             }
 
-            await AccountsModel.begin();
-            await AccountsModel.archiveAccountUsers(accountId);
-            await AccountsModel.archiveAccount(accountId);
-            await AccountsModel.archiveTransactionsByAccount(accountId);
-            await AccountsModel.commit();
-            return res.json({ message: 'Account Deleted Successfully' });
+            await require('../prisma/client').runTransaction(async (tx) => {
+                await AccountsModel.archiveAccountUsers(accountId, tx);
+                await AccountsModel.archiveAccount(accountId, tx);
+                await AccountsModel.archiveTransactionsByAccount(accountId, tx);
+            });
+            return res.status(200).json({ message: 'Account Deleted Successfully' });
         } catch (err) {
-            await AccountsModel.rollback();
             console.error(err.message);
             return res.status(500).send('Server Error');
         }
     },
 
     addUserToAccount: async (req, res) => {
-        const { accountId, email } = req.body;
+        const { accountId } = req.params;
+        const { email } = req.body;
         try {
             let userId = req.user.user.id;
 
@@ -90,19 +93,19 @@ module.exports = {
                 return res.status(403).json({ message: 'User has access all ready' });
             }
 
-            await AccountsModel.begin();
-            await AccountsModel.insertAccountUser(accountId, newUser.rows[0].id);
-            await AccountsModel.commit();
+            await require('../prisma/client').runTransaction(async (tx) => {
+                await AccountsModel.insertAccountUser(accountId, newUser.rows[0].id, tx);
+            });
             return res.status(201).json({ message: 'User Added successfully', accountId });
         } catch (error) {
-            await AccountsModel.rollback();
             console.error(error);
             return res.status(500).json({ error: 'Error adding user' });
         }
     },
 
     transferOwnership: async (req, res) => {
-        const { accountId, email } = req.body;
+        const { accountId } = req.params;
+        const { email } = req.body;
         try {
             let userId = req.user.user.id;
 
@@ -116,19 +119,19 @@ module.exports = {
                 return res.status(403).json({ message: 'User to add must have access to this account to become its owner' });
             }
 
-            await AccountsModel.begin();
-            await AccountsModel.updateOwner(accountUser.rows[0].id, accountId);
-            await AccountsModel.commit();
-            return res.status(201).json({ message: 'User owner changed successfully', accountId });
+            await require('../prisma/client').runTransaction(async (tx) => {
+                await AccountsModel.updateOwner(accountUser.rows[0].id, accountId, tx);
+            });
+            return res.status(200).json({ message: 'User owner changed successfully', accountId });
         } catch (error) {
-            await AccountsModel.rollback();
             console.error(error);
             return res.status(500).json({ error: 'Error changing owner' });
         }
     },
 
     changeOverdraft: async (req, res) => {
-        const { accountId, overdraft } = req.body;
+        const { accountId } = req.params;
+        const { overdraft } = req.body;
         try {
             let userId = req.user.user.id;
 
@@ -137,12 +140,11 @@ module.exports = {
                 return res.status(401).json({ message: 'Unauthorized: Must be accounts owner to change overdraft' });
             }
 
-            await AccountsModel.begin();
-            await AccountsModel.updateOverdraft(overdraft, accountId);
-            await AccountsModel.commit();
-            return res.status(201).json({ message: 'Overdraft changed successfully', accountId });
+            await require('../prisma/client').runTransaction(async (tx) => {
+                await AccountsModel.updateOverdraft(overdraft, accountId, tx);
+            });
+            return res.status(200).json({ message: 'Overdraft changed successfully', accountId });
         } catch (error) {
-            await AccountsModel.rollback();
             console.error(error);
             return res.status(500).json({ error: 'Error changing overdraft' });
         }

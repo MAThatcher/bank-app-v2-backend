@@ -38,7 +38,7 @@ module.exports = {
             if (result.rows.length === 0) {
                 return res.status(404).json({ error: 'No notification found' });
             }
-            return res.json(result.rows);
+            return res.status(200).json(result.rows);
         } catch (err) {
             console.error(err.message);
             return res.status(500).send('Server Error');
@@ -50,7 +50,7 @@ module.exports = {
             const { message } = req.body;
             let userId = req.user.user.id;
             const result = await NotificationsModel.createNotification(message, userId);
-            return res.json(result.rows);
+            return res.status(201).json(result.rows);
         } catch (err) {
             console.error(err.message);
             return res.status(500).send('Server Error');

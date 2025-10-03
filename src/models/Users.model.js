@@ -1,38 +1,48 @@
-const pool = require('../config/db');
+const prisma = require('../prisma/client');
+
+const wrapRows = (data) => {
+    if (!data) return { rows: [] };
+    if (Array.isArray(data)) return { rows: data };
+    return { rows: [data] };
+};
 
 module.exports = {
-    begin: () => pool.query('BEGIN'),
-    commit: () => pool.query('COMMIT'),
-    rollback: () => pool.query('ROLLBACK'),
+    // Legacy lifecycle methods removed; use prisma.runTransaction and pass
+    // `tx` into model functions when transactional behavior is required.
 
-    softDeleteUserByEmail: (email) =>
-        pool.query(
-            "UPDATE users SET email = NULL,archived = true,archived_email = $1,super_user = false, password = 'DELETED', update_date = current_timestamp where email = $2;",
-            [email, email]
-        ),
+    softDeleteUserByEmail: async (email, tx = prisma) => {
+        await tx.users.updateMany({ where: { email }, data: { email: null, archived: true, archived_email: email, super_user: false, password: 'DELETED', update_date: new Date() } });
+        return { rows: [] };
+    },
 
-    getUserDetailsByEmail: (email) =>
-        pool.query(
-            'SELECT id,email,create_date,update_date,super_user FROM users WHERE email = $1 and archived = false;',
-            [email]
-        ),
+    getUserDetailsByEmail: async (email) => {
+        const rows = await prisma.users.findMany({ where: { email, archived: false }, select: { id: true, email: true, create_date: true, update_date: true, super_user: true } });
+        return wrapRows(rows);
+    },
 
-    findUserByEmailVerified: (email) =>
-        pool.query(
-            'SELECT id, email, password, super_user FROM users WHERE email = $1 and verified = true;',
-            [email]
-        ),
+    findUserByEmailVerified: async (email) => {
+        const rows = await prisma.users.findMany({ where: { email, verified: true }, select: { id: true, email: true, password: true, super_user: true } });
+        return wrapRows(rows);
+    },
 
-    findUserByEmail: (email) =>
-        pool.query('SELECT * FROM users WHERE email = $1;', [email]),
+    findUserByEmail: async (email) => {
+        const rows = await prisma.users.findMany({ where: { email } });
+        return wrapRows(rows);
+    },
 
-    insertUser: (email, hashedPassword) =>
-        pool.query('INSERT INTO users (email, password ) VALUES ($1, $2) returning id;', [email, hashedPassword]),
+    insertUser: async (email, hashedPassword, tx = prisma) => {
+        const created = await tx.users.create({ data: { email, password: hashedPassword }, select: { id: true } });
+        return { rows: [{ id: created.id }] };
+    },
 
-    insertUserDetails: (userId) =>
-        pool.query('insert into user_details (user_id) values ($1)', [userId]),
+    insertUserDetails: async (userId, tx = prisma) => {
+        await tx.user_details.create({ data: { user_id: Number(userId) } });
+        return { rows: [] };
+    },
 
-    setVerifiedByEmail: (email) =>
-        pool.query('update users set verified = true where email = $1;', [email]),
+    setVerifiedByEmail: async (email, tx = prisma) => {
+        await tx.users.updateMany({ where: { email }, data: { verified: true } });
+        return { rows: [] };
+    },
 };
 

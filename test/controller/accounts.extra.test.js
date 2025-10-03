@@ -22,7 +22,7 @@ describe('Accounts Controller - extra', () => {
   afterEach(() => sinon.restore());
 
   it('transferOwnership returns 401 when not owner', async () => {
-    const req = { body: { accountId: 1, email: 'a@b.com' }, user: { user: { id: 5 } } };
+    const req = { params: { accountId: 1 }, body: { email: 'a@b.com' }, user: { user: { id: 5 } } };
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [] });
     await controller.transferOwnership(req, res);
@@ -30,7 +30,7 @@ describe('Accounts Controller - extra', () => {
   });
 
   it('transferOwnership returns 403 when target not found', async () => {
-    const req = { body: { accountId: 1, email: 'b@b.com' }, user: { user: { id: 5 } } };
+    const req = { params: { accountId: 1 }, body: { email: 'b@b.com' }, user: { user: { id: 5 } } };
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [{ id: 1 }] });
     sinon.stub(AccountsModel, 'findAccountUserIdByEmail').resolves({ rows: [] });
@@ -39,19 +39,19 @@ describe('Accounts Controller - extra', () => {
   });
 
   it('transferOwnership success', async () => {
-    const req = { body: { accountId: 1, email: 'b@b.com' }, user: { user: { id: 5 } } };
+    const req = { params: { accountId: 1 }, body: { email: 'b@b.com' }, user: { user: { id: 5 } } };
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [{ id: 1 }] });
     sinon.stub(AccountsModel, 'findAccountUserIdByEmail').resolves({ rows: [{ id: 9 }] });
-    sinon.stub(AccountsModel, 'begin').resolves();
-    sinon.stub(AccountsModel, 'updateOwner').resolves();
-    sinon.stub(AccountsModel, 'commit').resolves();
+  const prisma = require('../../src/prisma/client');
+  sinon.stub(prisma, 'runTransaction').resolves();
+  sinon.stub(AccountsModel, 'updateOwner').resolves();
     await controller.transferOwnership(req, res);
-    expect(res.status.calledOnceWith(201)).to.be.true;
+    expect(res.status.calledOnceWith(200)).to.be.true;
   });
 
   it('changeOverdraft unauthorized', async () => {
-    const req = { body: { accountId: 1, overdraft: true }, user: { user: { id: 5 } } };
+    const req = { params: { accountId: 1 }, body: { overdraft: true }, user: { user: { id: 5 } } };
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [] });
     await controller.changeOverdraft(req, res);
@@ -59,13 +59,13 @@ describe('Accounts Controller - extra', () => {
   });
 
   it('changeOverdraft success', async () => {
-    const req = { body: { accountId: 1, overdraft: true }, user: { user: { id: 5 } } };
+    const req = { params: { accountId: 1 }, body: { overdraft: true }, user: { user: { id: 5 } } };
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [{ id: 1 }] });
-    sinon.stub(AccountsModel, 'begin').resolves();
-    sinon.stub(AccountsModel, 'updateOverdraft').resolves();
-    sinon.stub(AccountsModel, 'commit').resolves();
+  const prisma = require('../../src/prisma/client');
+  sinon.stub(prisma, 'runTransaction').resolves();
+  sinon.stub(AccountsModel, 'updateOverdraft').resolves();
     await controller.changeOverdraft(req, res);
-    expect(res.status.calledOnceWith(201)).to.be.true;
+    expect(res.status.calledOnceWith(200)).to.be.true;
   });
 });

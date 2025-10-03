@@ -10,17 +10,13 @@ require('dotenv').config();
 
 module.exports = {
     deleteUser: async (req, res) => {
-        const { email } = req.params;
         try {
-            if (req.user.user.email === email) {
-                await UsersModel.begin();
-                await UsersModel.softDeleteUserByEmail(email);
-                await UsersModel.commit();
-                return res.json({ message: 'User Deleted Successfully' });
-            }
-            return res.status(403).json({ error: 'Unauthorized' });
+            const email = req.user.user.email;
+            await require('../prisma/client').runTransaction(async (tx) => {
+                await UsersModel.softDeleteUserByEmail(email, tx);
+            });
+            return res.json({ message: 'User Deleted Successfully' });
         } catch (err) {
-            await UsersModel.rollback();
             console.error(err.message);
             return res.status(500).send('Server Error');
         }
@@ -32,7 +28,7 @@ module.exports = {
             if (result.rows.length === 0) {
                 return res.status(404).json({ error: 'User not found' });
             }
-            return res.json(result.rows[0]);
+            return res.status(200).json(result.rows[0]);
         } catch (err) {
             console.error(err.message);
             return res.status(500).json({ error: 'Server Error' });
@@ -49,13 +45,12 @@ module.exports = {
 
             const user = result.rows[0];
             const isMatch = await bcrypt.compare(password, user.password);
-
             if (!isMatch) {
                 return res.status(401).json({ error: 'Invalid password' });
             }
             const accessToken = generateAccessToken({ user });
             const refreshToken = generateRefreshToken({ user });
-            return res.json({ accessToken, refreshToken, message: 'Login Successful' });
+            return res.status(200).json({ accessToken, refreshToken, message: 'Login Successful' });
         } catch (err) {
             console.error(err.message);
             return res.status(500).send('Server Error');
@@ -73,14 +68,14 @@ module.exports = {
             const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
             const hashedPassword = await bcrypt.hash(password, 10);
-            await UsersModel.begin();
-            await sendVerificationEmail(email, token);
-            let newUserId = await UsersModel.insertUser(email, hashedPassword);
-            await UsersModel.insertUserDetails(newUserId.rows[0].id);
-            await UsersModel.commit();
-            return res.status(200).json({ message: 'Verification email sent. Please check your inbox.' });
+            
+            await require('../prisma/client').runTransaction(async (tx) => {
+                await sendVerificationEmail(email, token);
+                let newUserId = await UsersModel.insertUser(email, hashedPassword, tx);
+                await UsersModel.insertUserDetails(newUserId.rows[0].id, tx);
+            });
+            return res.status(201).json({ message: 'Verification email sent. Please check your inbox.' });
         } catch (err) {
-            await UsersModel.rollback();
             console.log(err.message);
             return res.status(500).json({ error: 'Server Error' });
         }
@@ -93,12 +88,11 @@ module.exports = {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             const { email } = decoded;
 
-            await UsersModel.begin();
-            await UsersModel.setVerifiedByEmail(email);
-            await UsersModel.commit();
+            await require('../prisma/client').runTransaction(async (tx) => {
+                await UsersModel.setVerifiedByEmail(email, tx);
+            });
             return res.status(200).json({ message: 'Email successfully verified.' });
         } catch (error) {
-            await UsersModel.rollback();
             console.log('Error verifying email:', error.message);
             return res.status(500).json({ error: 'Server Error' });
         }

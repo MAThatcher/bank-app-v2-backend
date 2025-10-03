@@ -1,53 +1,159 @@
-const pool = require('../config/db');
+/**
+ * Prisma-backed implementation of the Accounts model.
+ *
+ * This file preserves the same function names and return shapes as the previous
+ * Postgres/pool-based implementation so controllers and unit tests don't need
+ * to change. Each function returns an object { rows: [...] } (or resolves to
+ * a value) to match existing usage.
+ */
+const prisma = require('../prisma/client');
+
+// Helper to normalise Prisma results into { rows: [...] } with plain JS numbers
+const wrapRows = (data) => {
+    if (!data) return { rows: [] };
+    if (Array.isArray(data)) {
+        return {
+            rows: data.map((r) => {
+                // map Decimal fields (balance, amount, etc.) to numbers where present
+                const out = { ...r };
+                if (out.balance && typeof out.balance === 'object' && typeof out.balance.toNumber === 'function') {
+                    out.balance = out.balance.toNumber();
+                }
+                return out;
+            }),
+        };
+    }
+    // single object
+    return { rows: [data] };
+};
 
 module.exports = {
-    begin: () => pool.query('BEGIN'),
-    commit: () => pool.query('COMMIT'),
-    rollback: () => pool.query('ROLLBACK'),
+    // (legacy lifecycle methods removed) use `prisma.runTransaction` from
+    // controllers to run multi-statement flows. Model methods accept an
+    // optional `tx` parameter to operate inside a transaction.
 
-    getAccountsForUser: (email) =>
-        pool.query(
-            `select a.id, a.name,a.balance from users u join account_users au on au.user_id = u.id join accounts a on a.id = au.account_id where u.email = $1 and a.archived = false;`,
-            [email]
-        ),
+    getAccountsForUser: async (email) => {
+        const rows = await prisma.accounts.findMany({
+            where: {
+                archived: false,
+                account_users: {
+                    some: {
+                        users: {
+                            email,
+                            archived: false,
+                        },
+                    },
+                },
+            },
+            select: {
+                id: true,
+                name: true,
+                balance: true,
+            },
+        });
+        return wrapRows(rows);
+    },
 
-    getAccountUsersByAccountId: (accountId) =>
-        pool.query('select * from account_users where account_id = $1 and archived = false', [accountId]),
+    getAccountUsersByAccountId: async (accountId) => {
+        const rows = await prisma.account_users.findMany({
+            where: { account_id: Number(accountId), archived: false },
+        });
+        return wrapRows(rows);
+    },
 
-    getAccountById: (accountId) => pool.query('select * from accounts where id = $1', [accountId]),
+    getAccountById: async (accountId) => {
+        const row = await prisma.accounts.findUnique({ where: { id: Number(accountId) } });
+        return wrapRows(row);
+    },
 
-    insertAccount: (accountName, ownerId) =>
-        pool.query('insert into accounts (name,owner) values ($1,$2) returning id;', [accountName, ownerId]),
+    // When running inside a transaction, callers can pass the transaction
+    // client as the third argument `tx`. If not provided the normal prisma
+    // client is used so existing non-transactional callers keep working.
+    insertAccount: async (accountName, ownerId, tx = prisma) => {
+        const created = await tx.accounts.create({
+            data: { name: accountName, owner: Number(ownerId) },
+            select: { id: true },
+        });
+        // Match previous interface: return { rows: [{ id }] }
+        return { rows: [{ id: created.id }] };
+    },
 
-    insertAccountUser: (accountId, userId) =>
-        pool.query('INSERT INTO account_users (account_id, user_id) VALUES ($1, $2);', [accountId, userId]),
+    insertAccountUser: async (accountId, userId, tx = prisma) => {
+        await tx.account_users.create({
+            data: { account_id: Number(accountId), user_id: Number(userId) },
+        });
+        return { rows: [] };
+    },
 
-    getAccountOwnerAndBalance: (userId, accountId) =>
-        pool.query('select a.balance,a.owner from accounts a where a.owner = $1 and a.id = $2;', [userId, accountId]),
+    getAccountOwnerAndBalance: async (userId, accountId) => {
+        const rows = await prisma.accounts.findMany({
+            where: { owner: Number(userId), id: Number(accountId) },
+            select: { balance: true, owner: true },
+        });
+        // Convert Decimal to number in wrapRows
+        return wrapRows(rows);
+    },
 
-    archiveAccountUsers: (accountId) =>
-        pool.query('update account_users set archived = true, update_date = current_timestamp where account_id = $1', [accountId]),
+    archiveAccountUsers: async (accountId, tx = prisma) => {
+        await tx.account_users.updateMany({
+            where: { account_id: Number(accountId) },
+            data: { archived: true, update_date: new Date() },
+        });
+        return { rows: [] };
+    },
 
-    archiveAccount: (accountId) =>
-        pool.query('update accounts set archived = true, update_date = current_timestamp where id = $1', [accountId]),
+    archiveAccount: async (accountId, tx = prisma) => {
+        await tx.accounts.update({
+            where: { id: Number(accountId) },
+            data: { archived: true, update_date: new Date() },
+        });
+        return { rows: [] };
+    },
 
-    archiveTransactionsByAccount: (accountId) =>
-        pool.query('update transactions set archived = true, update_date = current_timestamp where account_id = $1', [accountId]),
+    archiveTransactionsByAccount: async (accountId, tx = prisma) => {
+        await tx.transactions.updateMany({
+            where: { account_id: Number(accountId) },
+            data: { archived: true, update_date: new Date() },
+        });
+        return { rows: [] };
+    },
 
-    getAccountByOwnerAndId: (userId, accountId) =>
-        pool.query('select * from accounts where owner = $1 and archived = false and id = $2', [userId, accountId]),
+    getAccountByOwnerAndId: async (userId, accountId) => {
+        const rows = await prisma.accounts.findMany({
+            where: { owner: Number(userId), archived: false, id: Number(accountId) },
+        });
+        return wrapRows(rows);
+    },
 
-    findUserByEmail: (email) => pool.query('Select * from users where email = $1 and archived = false', [email]),
+    findUserByEmail: async (email) => {
+        const rows = await prisma.users.findMany({ where: { email, archived: false } });
+        return wrapRows(rows);
+    },
 
-    checkUserHasAccess: (accountId, userId) =>
-        pool.query('Select * from account_users where account_id = $1 and user_id = $2 and archived = false', [accountId, userId]),
+    checkUserHasAccess: async (accountId, userId) => {
+        const rows = await prisma.account_users.findMany({
+            where: { account_id: Number(accountId), user_id: Number(userId), archived: false },
+        });
+        return wrapRows(rows);
+    },
 
-    findAccountUserIdByEmail: (accountId, email) =>
-        pool.query('Select u.id from account_users au join users u on u.id = au.user_id where au.account_id = $1 and u.email = $2 and u.archived = false', [accountId, email]),
+    findAccountUserIdByEmail: async (accountId, email) => {
+        // Find the user with the given email who has an account_user linking to accountId
+        const user = await prisma.users.findFirst({
+            where: { email, archived: false, account_users: { some: { account_id: Number(accountId) } } },
+            select: { id: true },
+        });
+        if (!user) return { rows: [] };
+        return { rows: [{ id: user.id }] };
+    },
 
-    updateOwner: (newOwnerId, accountId) =>
-        pool.query('update accounts set owner = $1 where id = $2;', [newOwnerId, accountId]),
+    updateOwner: async (newOwnerId, accountId, tx = prisma) => {
+        await tx.accounts.update({ where: { id: Number(accountId) }, data: { owner: Number(newOwnerId) } });
+        return { rows: [] };
+    },
 
-    updateOverdraft: (overdraft, accountId) =>
-        pool.query('update accounts set overdraft = $1 where id = $2;', [overdraft, accountId]),
+    updateOverdraft: async (overdraft, accountId, tx = prisma) => {
+        await tx.accounts.update({ where: { id: Number(accountId) }, data: { overdraft } });
+        return { rows: [] };
+    },
 };

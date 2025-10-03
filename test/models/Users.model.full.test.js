@@ -2,18 +2,20 @@ const chai = require('chai');
 const sinon = require('sinon');
 const { expect } = chai;
 
-const pool = require('../../src/config/db');
+const prisma = require('../../src/prisma/client');
 const UsersModel = require('../../src/models/Users.model');
 
 describe('Users Model - full', () => {
   afterEach(() => sinon.restore());
 
   it('calls all exported functions', async () => {
-    sinon.stub(pool, 'query').resolves({ rows: [{ id: 1 }] });
+    sinon.stub(prisma.users, 'updateMany').resolves({});
+    sinon.stub(prisma.users, 'findMany').resolves([{ id: 1 }]);
+    sinon.stub(prisma.users, 'create').resolves({ id: 1 });
+    sinon.stub(prisma.user_details, 'create').resolves({});
+    sinon.stub(prisma.users, 'update').resolves({});
 
-    await UsersModel.begin();
-    await UsersModel.commit();
-    await UsersModel.rollback();
+  // legacy lifecycle calls removed
     await UsersModel.softDeleteUserByEmail('a@b.com');
     await UsersModel.getUserDetailsByEmail('a@b.com');
     await UsersModel.findUserByEmailVerified('a@b.com');
@@ -22,6 +24,6 @@ describe('Users Model - full', () => {
     await UsersModel.insertUserDetails(1);
     await UsersModel.setVerifiedByEmail('a@b.com');
 
-    expect(pool.query.called).to.be.true;
+    expect(prisma.users.findMany.called).to.be.true;
   });
 });

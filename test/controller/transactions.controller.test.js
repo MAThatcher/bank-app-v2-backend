@@ -61,11 +61,11 @@ describe('Transactions Controller', () => {
     const res = mockRes();
     sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [{ id: 1 }] });
     sinon.stub(TransactionsModel, 'getAccountBalanceAndOverdraft').resolves({ rows: [{ overdraft: true, balance: '50' }] });
-    sinon.stub(TransactionsModel, 'begin').resolves();
     sinon.stub(TransactionsModel, 'insertTransaction').resolves();
     sinon.stub(TransactionsModel, 'getBalanceForAccount').resolves({ rows: [{ balance: '50' }] });
     sinon.stub(TransactionsModel, 'updateAccountBalance').resolves();
-    sinon.stub(TransactionsModel, 'commit').resolves();
+    const prisma = require('../../src/prisma/client');
+    sinon.stub(prisma, 'runTransaction').resolves();
 
     await controller.createTransaction(req, res);
     expect(res.status.calledOnceWith(201)).to.be.true;

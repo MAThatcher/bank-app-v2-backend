@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model account_users {
+  id          Int       @id @default(autoincrement())
+  create_date DateTime? @default(now()) @db.Timestamp(6)
+  update_date DateTime? @default(now()) @db.Timestamp(6)
+  user_id     Int?
+  account_id  Int?
+  archived    Boolean?  @default(false)
+  accounts    accounts? @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_accounts")
+  users       users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model accounts {
+  id            Int             @id @default(autoincrement())
+  name          String?         @default("Account") @db.VarChar(255)
+  create_date   DateTime?       @default(now()) @db.Timestamp(6)
+  update_date   DateTime?       @default(now()) @db.Timestamp(6)
+  owner         Int?
+  balance       Decimal?        @default(0) @db.Decimal(13, 2)
+  overdraft     Boolean?        @default(false)
+  archived      Boolean?        @default(false)
+  type          String?         @db.VarChar(255)
+  account_users account_users[]
+  users         users?          @relation(fields: [owner], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+  transactions  transactions[]
+}
+
+model notifications {
+  id          Int       @id @default(autoincrement())
+  message     String    @db.VarChar(1020)
+  create_date DateTime? @default(now()) @db.Timestamp(6)
+  update_date DateTime? @default(now()) @db.Timestamp(6)
+  user_id     Int
+  dismissed   Boolean?  @default(false)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model tokens {
+  id          Int       @id @default(autoincrement())
+  value       String    @db.VarChar(1028)
+  type        String?   @default("AccessToken") @db.VarChar(64)
+  create_date DateTime? @default(now()) @db.Timestamp(6)
+  expire_date DateTime? @default(now()) @db.Timestamp(6)
+  user_id     Int
+  valid       Boolean?  @default(true)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model transactions {
+  id          Int       @id @default(autoincrement())
+  create_date DateTime? @default(now()) @db.Timestamp(6)
+  update_date DateTime? @default(now()) @db.Timestamp(6)
+  account_id  Int
+  description String    @db.VarChar(1020)
+  user_id     Int
+  amount      Decimal   @db.Decimal(13, 2)
+  archived    Boolean?  @default(false)
+  accounts    accounts  @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_accounts")
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model user_details {
+  id             Int       @id @default(autoincrement())
+  fname          String?   @db.VarChar(255)
+  mname          String?   @db.VarChar(255)
+  lname          String?   @db.VarChar(255)
+  address_street String?   @db.VarChar(255)
+  address_city   String?   @db.VarChar(255)
+  address_state  String?   @db.Char(2)
+  address_zip    Decimal?  @db.Decimal(5, 0)
+  create_date    DateTime? @default(now()) @db.Timestamp(6)
+  update_date    DateTime? @default(now()) @db.Timestamp(6)
+  user_id        Int
+  users          users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model users {
+  id             Int             @id @default(autoincrement())
+  email          String?         @unique @db.VarChar(255)
+  password       String          @db.VarChar(255)
+  archived       Boolean?        @default(false)
+  create_date    DateTime?       @default(now()) @db.Timestamp(6)
+  update_date    DateTime?       @default(now()) @db.Timestamp(6)
+  super_user     Boolean?        @default(false)
+  archived_email String?         @db.VarChar(255)
+  verified       Boolean?        @default(false)
+  account_users  account_users[]
+  accounts       accounts[]
+  notifications  notifications[]
+  tokens         tokens[]
+  transactions   transactions[]
+  user_details   user_details[]
+}

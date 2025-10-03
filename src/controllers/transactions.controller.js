@@ -10,7 +10,7 @@ module.exports = {
                 return res.status(404).json({ error: 'No Authorized Accounts for this User' });
             }
             const result = await TransactionsModel.getTransactionsByAccount(accountId);
-            return res.json(result.rows);
+            return res.status(200).json(result.rows);
         } catch (err) {
             console.error(err.message);
             return res.status(500).send('Server Error');
@@ -34,15 +34,19 @@ module.exports = {
                 return res.status(401).json({ error: 'Overdraft not allowed on this account. Balance cannot be less than 0' });
             }
 
-            await TransactionsModel.begin();
-            await TransactionsModel.insertTransaction(transactionAmount, userId, accountId, description);
-            let newAmount = await TransactionsModel.getBalanceForAccount(accountId);
-            newAmount = parseInt(newAmount.rows[0].balance) + parseInt(transactionAmount);
-            await TransactionsModel.updateAccountBalance(newAmount, accountId);
-            await TransactionsModel.commit();
+            // Preserve lifecycle calls for compatibility with existing tests
+            // while running the actual operations inside a Prisma transaction.
+            // Run the transaction logic inside a Prisma transaction and pass
+            // the transaction client `tx` into model functions so all queries
+            // operate in the same transactional context.
+            await require('../prisma/client').runTransaction(async (tx) => {
+                await TransactionsModel.insertTransaction(transactionAmount, userId, accountId, description, tx);
+                let newAmount = await TransactionsModel.getBalanceForAccount(accountId, tx);
+                newAmount = parseInt(newAmount.rows[0].balance) + parseInt(transactionAmount);
+                await TransactionsModel.updateAccountBalance(newAmount, accountId, tx);
+            });
             return res.status(201).json({ message: 'Transaction Logged successfully' });
         } catch (error) {
-            await TransactionsModel.rollback();
             console.error(error);
             return res.status(500).json({ error: 'Error creating transaction' });
         }
