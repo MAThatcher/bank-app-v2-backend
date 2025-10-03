@@ -2,18 +2,24 @@ const chai = require('chai');
 const sinon = require('sinon');
 const { expect } = chai;
 
-const pool = require('../../src/config/db');
+const prisma = require('../../src/prisma/client');
 const AccountsModel = require('../../src/models/Accounts.model');
 
 describe('Accounts Model - full', () => {
   afterEach(() => sinon.restore());
 
   it('calls lifecycle methods and queries', async () => {
-    sinon.stub(pool, 'query').resolves({ rows: [{ id: 1 }] });
-
-    await AccountsModel.begin();
-    await AccountsModel.commit();
-    await AccountsModel.rollback();
+    sinon.stub(prisma.accounts, 'findMany').resolves([{ id: 1 }]);
+    sinon.stub(prisma.account_users, 'findMany').resolves([{ id: 1 }]);
+    sinon.stub(prisma.accounts, 'findUnique').resolves({ id: 1 });
+    sinon.stub(prisma.accounts, 'create').resolves({ id: 1 });
+    sinon.stub(prisma.account_users, 'create').resolves({});
+    prisma.accounts.findMany.resolves([{ balance: 0, owner: 1 }]);
+    sinon.stub(prisma.account_users, 'updateMany').resolves({});
+    sinon.stub(prisma.accounts, 'update').resolves({});
+    sinon.stub(prisma.transactions, 'updateMany').resolves({});
+    sinon.stub(prisma.users, 'findMany').resolves([{ id: 2 }]);
+    prisma.account_users.findMany.resolves([]);
 
     await AccountsModel.getAccountsForUser('a@b.com');
     await AccountsModel.getAccountUsersByAccountId(1);
@@ -31,6 +37,6 @@ describe('Accounts Model - full', () => {
     await AccountsModel.updateOwner(2, 1);
     await AccountsModel.updateOverdraft(true, 1);
 
-    expect(pool.query.callCount).to.be.greaterThan(0);
+    expect(prisma.accounts.findMany.called).to.be.true;
   });
 });

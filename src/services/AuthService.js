@@ -1,34 +1,31 @@
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
-const pool = require("../config/db");
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+const prisma = require('../prisma/client');
 
-const generateAccessToken =  (user) => {
+const generateAccessToken = (user) => {
   try {
-    let token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: "15m" });
-    pool.query("BEGIN");
-    pool.query("update tokens set valid = false where user_id = $1 and type = 'AccessToken' and valid = true",[user.user.id]);
-    pool.query("insert into tokens (value,user_id,type,expire_date) values ($1,$2,'AccessToken',current_timestamp + (15 ||' minutes')::interval);",[token,user.user.id]);
-    pool.query("COMMIT");
+    const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '15m' });
+    prisma.runTransaction(async (tx) => {
+      await tx.tokens.updateMany({ where: { user_id: Number(user.user.id), type: 'AccessToken', valid: true }, data: { valid: false } });
+      await tx.tokens.create({ data: { value: token, user_id: Number(user.user.id), type: 'AccessToken', expire_date: new Date(Date.now() + 15 * 60 * 1000) } });
+    });
     return token;
-  }
-  catch (err){
+  } catch (err) {
     console.log(err);
-    pool.query("ROLLBACK");
     return null;
   }
 };
-const generateRefreshToken =  (user) => {
+
+const generateRefreshToken = (user) => {
   try {
-    let token = jwt.sign(user, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
-    pool.query("BEGIN");
-    pool.query("update tokens set valid = false where user_id = $1 and type = 'RefreshToken' and valid = true",[user.user.id]);
-    pool.query("insert into tokens (value,user_id,type,expire_date) values ($1,$2,'RefreshToken',current_timestamp + (7 ||' day')::interval);",[token,user.user.id]);
-    pool.query("COMMIT");
+    const token = jwt.sign(user, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+    prisma.runTransaction(async (tx) => {
+      await tx.tokens.updateMany({ where: { user_id: Number(user.user.id), type: 'RefreshToken', valid: true }, data: { valid: false } });
+      await tx.tokens.create({ data: { value: token, user_id: Number(user.user.id), type: 'RefreshToken', expire_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    });
     return token;
-  }
-  catch (err){
+  } catch (err) {
     console.log(err);
-    pool.query("ROLLBACK");
     return null;
   }
 };

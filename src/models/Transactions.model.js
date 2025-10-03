@@ -1,25 +1,40 @@
-const pool = require('../config/db');
+const prisma = require('../prisma/client');
+
+const wrapRows = (data) => {
+    if (!data) return { rows: [] };
+    if (Array.isArray(data)) return { rows: data };
+    return { rows: [data] };
+};
 
 module.exports = {
-    begin: () => pool.query('BEGIN'),
-    commit: () => pool.query('COMMIT'),
-    rollback: () => pool.query('ROLLBACK'),
 
-    checkUserAccountAccess: (userId, accountId) =>
-        pool.query('select id from account_users where user_id = $1 and account_id = $2 and archived = false', [userId, accountId]),
+    checkUserAccountAccess: async (userId, accountId) => {
+        const rows = await prisma.account_users.findMany({ where: { user_id: Number(userId), account_id: Number(accountId), archived: false }, select: { id: true } });
+        return wrapRows(rows);
+    },
 
-    getTransactionsByAccount: (accountId) =>
-        pool.query('select id,create_date,account_id,description,user_id,amount from transactions where account_id = $1 and archived = false order by id desc', [accountId]),
+    getTransactionsByAccount: async (accountId) => {
+        const rows = await prisma.transactions.findMany({ where: { account_id: Number(accountId), archived: false }, orderBy: { id: 'desc' }, select: { id: true, create_date: true, account_id: true, description: true, user_id: true, amount: true } });
+        return wrapRows(rows);
+    },
 
-    insertTransaction: (amount, userId, accountId, description) =>
-        pool.query('insert into transactions (amount,user_id,account_id,description) values ($1, $2, $3, $4);', [amount, userId, accountId, description]),
+    insertTransaction: async (amount, userId, accountId, description, tx = prisma) => {
+        await tx.transactions.create({ data: { amount, user_id: Number(userId), account_id: Number(accountId), description } });
+        return { rows: [] };
+    },
 
-    getAccountBalanceAndOverdraft: (accountId) =>
-        pool.query('select overdraft, balance from accounts where id = $1', [accountId]),
+    getAccountBalanceAndOverdraft: async (accountId, tx = prisma) => {
+        const row = await tx.accounts.findUnique({ where: { id: Number(accountId) }, select: { overdraft: true, balance: true } });
+        return wrapRows(row);
+    },
 
-    getBalanceForAccount: (accountId) =>
-        pool.query('Select balance from accounts where id = $1', [accountId]),
+    getBalanceForAccount: async (accountId, tx = prisma) => {
+        const row = await tx.accounts.findUnique({ where: { id: Number(accountId) }, select: { balance: true } });
+        return wrapRows(row);
+    },
 
-    updateAccountBalance: (newBalance, accountId) =>
-        pool.query('update accounts set balance = $1 where id = $2;', [newBalance, accountId]),
+    updateAccountBalance: async (newBalance, accountId, tx = prisma) => {
+        await tx.accounts.update({ where: { id: Number(accountId) }, data: { balance: newBalance } });
+        return { rows: [] };
+    },
 };

@@ -1,15 +1,32 @@
-const pool = require('../config/db');
+const prisma = require('../prisma/client');
+
+const wrapRows = (data) => {
+    if (!data) return { rows: [] };
+    if (Array.isArray(data)) return { rows: data };
+    return { rows: [data] };
+};
 
 module.exports = {
-    findRefreshToken: (refreshToken) =>
-        pool.query("select valid from tokens where value = $1 and valid = true and type = 'RefreshToken';", [refreshToken]),
+    findRefreshToken: async (refreshToken) => {
+        const row = await prisma.tokens.findFirst({
+            where: { value: refreshToken, valid: true, type: 'RefreshToken' },
+            select: { valid: true },
+        });
+        return wrapRows(row);
+    },
 
-    findUserByEmailVerified: (email) =>
-        pool.query("Select * from users where email = $1 and archived = false and verified = true", [email]),
+    findUserByEmailVerified: async (email) => {
+        const rows = await prisma.users.findMany({ where: { email, archived: false, verified: true } });
+        return wrapRows(rows);
+    },
 
-    findUserByIdVerified: (id) =>
-        pool.query('select * from users where id = $1 and verified = true and archived = false;', [id]),
+    findUserByIdVerified: async (id) => {
+        const row = await prisma.users.findUnique({ where: { id: Number(id) } });
+        return wrapRows(row);
+    },
 
-    updateUserPassword: (hashedPassword, id) =>
-        pool.query('update users set password = $1 where id = $2', [hashedPassword, id]),
+    updateUserPassword: async (hashedPassword, id) => {
+        await prisma.users.update({ where: { id: Number(id) }, data: { password: hashedPassword } });
+        return { rows: [] };
+    },
 };
