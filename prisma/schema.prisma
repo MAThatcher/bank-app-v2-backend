@@ -88,24 +88,25 @@ model user_details {
 }
 
 model users {
-  id             Int             @id @default(autoincrement())
-  email          String?         @unique @db.VarChar(255)
-  password       String          @db.VarChar(255)
-  archived       Boolean?        @default(false)
-  create_date    DateTime?       @default(now()) @db.Timestamp(6)
-  update_date    DateTime?       @default(now()) @db.Timestamp(6)
-  super_user     Boolean?        @default(false)
-  archived_email String?         @db.VarChar(255)
-  verified       Boolean?        @default(false)
-  account_users  account_users[]
-  accounts       accounts[]
-  audit_logs     audit_logs[]
-  disputes       disputes[]
-  notifications  notifications[]
-  sessions       sessions[]
-  tokens         tokens[]
-  transactions   transactions[]
-  user_details   user_details[]
+  id              Int              @id @default(autoincrement())
+  email           String?          @unique @db.VarChar(255)
+  password        String           @db.VarChar(255)
+  archived        Boolean?         @default(false)
+  create_date     DateTime?        @default(now()) @db.Timestamp(6)
+  update_date     DateTime?        @default(now()) @db.Timestamp(6)
+  super_user      Boolean?         @default(false)
+  archived_email  String?          @db.VarChar(255)
+  verified        Boolean?         @default(false)
+  account_users   account_users[]
+  accounts        accounts[]
+  audit_logs      audit_logs[]
+  disputes        disputes[]
+  notifications   notifications[]
+  sessions        sessions[]
+  tokens          tokens[]
+  transactions    transactions[]
+  two_factor_auth two_factor_auth?
+  user_details    user_details[]
 }
 
 model audit_logs {
@@ -152,6 +153,16 @@ model tags {
   account_id     Int?
   accounts       accounts?     @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_accounts")
   transactions   transactions? @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model two_factor_auth {
+  id          Int       @id @default(autoincrement())
+  user_id     Int       @unique
+  secret      String    @db.VarChar(255)
+  enabled     Boolean?  @default(false)
+  create_date DateTime? @default(now()) @db.Timestamp(6)
+  update_date DateTime? @default(now()) @db.Timestamp(6)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
 }
 
 enum account_type {

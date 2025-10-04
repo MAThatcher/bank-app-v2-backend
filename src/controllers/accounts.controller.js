@@ -265,26 +265,12 @@ module.exports = {
 
     //TODO
     removeUserFromAccount: async (req, res) => {
-        const rid = req.requestId;
-        const { accountId } = req.params;
-        const { email } = req.body;
-        const userId = req.user?.user?.id;
-        logger.debug('removeUserFromAccount start: %o', { requestId: rid, user: userEmail, accountId, targetEmail: email });
         return res.status(501).json({ error: 'Not Implemented' });
     },
     updateAccountDetails: async (req, res) => {
-        const rid = req.requestId;
-        const { accountId } = req.params;
-        const { accountName } = req.body;
-        const userId = req.user?.user?.id;
-        logger.debug('updateAccountDetails start: %o', { requestId: rid, user: userEmail, accountId, accountName });
         return res.status(501).json({ error: 'Not Implemented' });
     },
     getAccountBalance: async (req, res) => {
-        const rid = req.requestId;
-        const { accountId } = req.params;
-        const userId = req.user?.user?.id;
-        logger.debug('getAccountBalance start: %o', { requestId: rid, user: userEmail, accountId });
         return res.status(501).json({ error: 'Not Implemented' });
     }
 };

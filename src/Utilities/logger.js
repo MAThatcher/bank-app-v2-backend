@@ -7,7 +7,8 @@ const fileFormat = format.combine(
   format.timestamp(),
   format.errors({ stack: true }),
   format.splat(),
-  format.json()
+  format.json(),
+  format.prettyPrint()
 );
 
 const consoleFormat = format.combine(

@@ -18,9 +18,9 @@ module.exports = {
         return wrapRows(rows);
     },
 
-    insertTransaction: async (amount, userId, accountId, description, tx = prisma) => {
-        await tx.transactions.create({ data: { amount, user_id: Number(userId), account_id: Number(accountId), description } });
-        return { rows: [] };
+    insertTransaction: async (amount, userId, accountId, description, category, tx = prisma) => {
+        const rows = await tx.transactions.create({ data: { amount, user_id: Number(userId), account_id: Number(accountId), description, category } });
+        return wrapRows(rows);
     },
 
     getAccountBalanceAndOverdraft: async (accountId, tx = prisma) => {
@@ -34,7 +34,7 @@ module.exports = {
     },
 
     updateAccountBalance: async (newBalance, accountId, tx = prisma) => {
-        await tx.accounts.update({ where: { id: Number(accountId) }, data: { balance: newBalance } });
-        return { rows: [] };
+        const row = await tx.accounts.update({ where: { id: Number(accountId) }, data: { balance: newBalance } });
+        return wrapRows(row);
     },
 };
