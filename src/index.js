@@ -14,20 +14,18 @@ let app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
-// request id must be attached early so other middleware / routes can use it
 app.use(requestId);
 
-// add a morgan token to include request id in logs
 morgan.token('id', function getId(req) { return req.requestId; });
 app.use(morgan(':id :remote-addr - :method :url :status :response-time ms', { stream: { write: (message) => logger.info(message.trim()) } }));
 app.disable("x-powered-by");
 
-const accountRoutes = require("./routes/accounts.routes");
-const authRoutes = require("./routes/auth.routes");
-const dashboardRoutes = require("./routes/dashboard.routes.js");
-const notificationRoutes = require("./routes/notifications.routes");
-const transactionRoutes = require("./routes/transactions.routes");
-const userRoutes = require("./routes/users.routes");
+const accountRoutes = require("./views/accounts.routes");
+const authRoutes = require("./views/auth.routes");
+const dashboardRoutes = require("./views/dashboard.routes.js");
+const notificationRoutes = require("./views/notifications.routes");
+const transactionRoutes = require("./views/transactions.routes");
+const userRoutes = require("./views/users.routes");
 
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/users", userRoutes);
@@ -39,7 +37,6 @@ app.use("/api/notification", notificationRoutes);
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
-// Error handler (last middleware)
 app.use(errorHandler);
 module.exports = app;
 

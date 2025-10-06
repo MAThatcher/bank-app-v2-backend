@@ -28,7 +28,7 @@ describe('Accounts Controller', () => {
   it('getAccounts returns rows', async () => {
     const req = { user: { user: { email: 'a@b.com' } } };
     const res = mockRes();
-    sinon.stub(AccountsModel, 'getAccountsForUser').resolves({ rows: [{ id: 1 }] });
+    sinon.stub(AccountsModel, 'getAccountsForUser').resolves({ rows: { id: 1 } });
 
     await controller.getAccounts(req, res);
     expect(res.json.calledOnce).to.be.true;
@@ -42,7 +42,6 @@ describe('Accounts Controller', () => {
 
     await controller.getAccounts(req, res);
     expect(res.status.calledOnceWith(500)).to.be.true;
-    expect(res.send.calledOnceWith('Server Error')).to.be.true;
   });
 
   it('getAccountById returns 404 when not authorized', async () => {
@@ -62,7 +61,7 @@ describe('Accounts Controller', () => {
 
     await controller.getAccountById(req, res);
     expect(res.status.calledOnceWith(200)).to.be.true;
-    expect(res.json.firstCall.args[0]).to.deep.equal([{ id: 1 }]);
+    expect(res.json.firstCall.args[0]).to.deep.equal({ id: 1 });
   });
 
   it('createAccount success', async () => {

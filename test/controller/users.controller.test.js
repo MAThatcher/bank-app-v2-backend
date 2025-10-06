@@ -214,6 +214,7 @@ describe('Users Controller', () => {
       sinon.stub(jwt, 'verify').returns({ email: 'a@b.com' });
       const prisma = require('../../src/prisma/client');
       sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
+      sinon.stub(UsersModel, 'findUserByEmail').resolves({ rows: [{ isVerified: false }] });
       sinon.stub(UsersModel, 'setVerifiedByEmail').resolves();
 
       await usersController.verifyEmail(req, res);

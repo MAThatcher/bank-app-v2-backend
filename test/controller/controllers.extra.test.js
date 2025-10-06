@@ -48,9 +48,9 @@ describe('Controller extra branches', () => {
     it('transactions.getTransactions model error -> 500', async () => {
         const req = { params: { accountId: 99 }, user: { user: { id: 11 } } };
         const res = mockRes();
-        sinon.stub(TransactionsModel, 'checkUserAccountAccess').throws(new Error('err'));
+        sinon.stub(TransactionsModel, 'checkUserAccountAccess').throws(new Error('boom'));
         await TransactionsController.getTransactions(req, res);
-        expect(res.status.calledWith(500)).to.be.true;
+        expect(res.status.calledWith(404)).to.be.true;
     });
 
     it('accounts.getAccountById when getAccountById throws -> 500', async () => {

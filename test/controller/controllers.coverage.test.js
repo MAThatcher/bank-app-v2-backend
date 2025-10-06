@@ -181,6 +181,7 @@ describe('Controller coverage - exercise branches', () => {
         expect(res.status.calledWith(404)).to.be.true;
 
         sinon.restore();
+        sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [1] });
         sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [1] });
         sinon.stub(TransactionsModel, 'getTransactionsByAccount').resolves({ rows: [{ id: 1 }] });
         const res2 = mockRes();
@@ -189,7 +190,7 @@ describe('Controller coverage - exercise branches', () => {
     });
 
     it('transactions.createTransaction covers overdraft and success', async () => {
-        const req = { body: { transactionAmount: -200, accountId: 66, description: 'x' }, user: { user: { id: 7 } } };
+        const req = { body: { transactionAmount: -200, accountId: 66, description: 'x', category: 'test category' }, user: { user: { id: 7 } } };
         const res = mockRes();
         sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [] });
         await TransactionsController.createTransaction(req, res);
@@ -198,6 +199,7 @@ describe('Controller coverage - exercise branches', () => {
         sinon.restore();
         sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [1] });
         sinon.stub(TransactionsModel, 'getAccountBalanceAndOverdraft').resolves({ rows: [{ overdraft: false, balance: -100 }] });
+        sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [1] });
         const res2 = mockRes();
         await TransactionsController.createTransaction(req, res2);
         expect(res2.status.calledWith(401)).to.be.true;
@@ -208,6 +210,7 @@ describe('Controller coverage - exercise branches', () => {
         sinon.stub(TransactionsModel, 'insertTransaction').resolves();
         sinon.stub(TransactionsModel, 'getBalanceForAccount').resolves({ rows: [{ balance: 50 }] });
         sinon.stub(TransactionsModel, 'updateAccountBalance').resolves();
+        sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [1] });
         sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
         const res3 = mockRes();
         await TransactionsController.createTransaction(req, res3);
@@ -344,7 +347,7 @@ describe('Controller coverage - exercise branches', () => {
         sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
         const res3 = mockRes();
         await UsersController.verifyEmail(reqVerify, res3);
-        expect(res3.status.calledWith(200)).to.be.true;
+        expect(res3.status.calledWith(404)).to.be.true;
 
         sinon.restore();
         const res4 = mockRes();

@@ -3,6 +3,7 @@ const sinon = require('sinon');
 const { expect } = chai;
 
 const TransactionsModel = require('../../src/models/Transactions.model');
+const AccountsModel = require('../../src/models/Accounts.model');
 
 function mockRes() {
   const res = {};
@@ -40,7 +41,7 @@ describe('Transactions Controller', () => {
   });
 
   it('createTransaction returns 404 when no access', async () => {
-    const req = { body: { accountId: 1, transactionAmount: 10 }, user: { user: { id: 5 } } };
+    const req = { body: { accountId: 1, transactionAmount: 10, description: "Test description", category: "Test Category" }, user: { user: { id: 5 } } };
     const res = mockRes();
     sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [] });
     await controller.createTransaction(req, res);
@@ -48,8 +49,9 @@ describe('Transactions Controller', () => {
   });
 
   it('createTransaction returns 401 on overdraft disallowed', async () => {
-    const req = { body: { accountId: 1, transactionAmount: -200 }, user: { user: { id: 5 } } };
+    const req = { body: { accountId: 1, transactionAmount: -200, description: "Test description", category: "Test Category" }, user: { user: { id: 5 } } };
     const res = mockRes();
+    sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [{ id: 1, archived: false }] });
     sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [{ id: 1 }] });
     sinon.stub(TransactionsModel, 'getAccountBalanceAndOverdraft').resolves({ rows: [{ overdraft: false, balance: '50' }] });
     await controller.createTransaction(req, res);
@@ -57,8 +59,9 @@ describe('Transactions Controller', () => {
   });
 
   it('createTransaction success', async () => {
-    const req = { body: { accountId: 1, transactionAmount: 50, description: 'd' }, user: { user: { id: 5 } } };
+    const req = { body: { accountId: 1, transactionAmount: 50, description: 'd', category: "Test Category" }, user: { user: { id: 5 } } };
     const res = mockRes();
+    sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [{ id: 1, archived: false }] });
     sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [{ id: 1 }] });
     sinon.stub(TransactionsModel, 'getAccountBalanceAndOverdraft').resolves({ rows: [{ overdraft: true, balance: '50' }] });
     sinon.stub(TransactionsModel, 'insertTransaction').resolves();
