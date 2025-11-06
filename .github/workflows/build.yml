@@ -17,13 +17,13 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
+    - name: SonarQube Scan SC
+      uses: SonarSource/sonarqube-scan-action@v6
+      env:
+          SONAR_TOKEN_SC: ${{ secrets.SONAR_TOKEN_SC }}
     - name: SonarQube Scan
       uses: SonarSource/sonarqube-scan-action@v6
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-    - name: SonarQube Scan
-      uses: SonarSource/sonarqube-scan-action@v6
-      env:
-          SONAR_TOKEN_SC: ${{ secrets.SONAR_TOKEN_SC }}
+
