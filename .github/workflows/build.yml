@@ -20,7 +20,7 @@ jobs:
     - name: SonarQube Scan SC
       uses: SonarSource/sonarqube-scan-action@v6
       env:
-          SONAR_TOKEN_SC: ${{ secrets.SONAR_TOKEN_SC }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_SC }}
     - name: SonarQube Scan
       uses: SonarSource/sonarqube-scan-action@v6
       env:
