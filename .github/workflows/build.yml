@@ -8,7 +8,7 @@ on:
       - 'releases/**'
   pull_request:
       types: [opened, synchronize, reopened]
-
+#comment to initiate github actions for testing
 name: Main Workflow
 jobs:
   sonarqube:
