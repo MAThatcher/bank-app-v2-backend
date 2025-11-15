@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
 const AccountsController = require('../../src/controllers/accounts.controller');
-const AuthController = require('../../src/controllers/auth.controller');
 const TransactionsController = require('../../src/controllers/transactions.controller');
 const NotificationsController = require('../../src/controllers/notifications.controller');
 const DashboardController = require('../../src/controllers/dashboard.controller');

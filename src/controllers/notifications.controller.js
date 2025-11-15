@@ -8,7 +8,7 @@ module.exports = {
         try {
             let userId = req.user.user.id;
             const result = await NotificationsModel.getNotificationsForUser(userId);
-            if (result.rows.length === 0) {
+            if (!result || !result.rows || result.rows.length === 0) {
                 return res.status(404).json({ error: 'No notifications found' });
             }
             return res.status(200).json(result.rows);
@@ -65,17 +65,55 @@ module.exports = {
             return res.status(500).send('Server Error');
         }
     },
-    //TODO
+
     dismissAllNotifications: async (req, res) => {
-        return res.status(501).json({ error: 'Not Implemented' });
+        const rid = req.requestId;
+        const userId = req.user.user.id;
+        try {
+            await NotificationsModel.dismissAllNotifications(userId);
+            return res.status(201);
+        }
+        catch (err) {
+            logger.error('dismissAllNotifications error: %o', err, { requestId: rid });
+            return res.status(500).send('Server Error');
+        }
     },
     getUnreadCount: async (req, res) => {
-        return res.status(501).json({ error: 'Not Implemented' });
+        const rid = req.requestId;
+        const userId = req.user.user.id;
+        try {
+            const result = await NotificationsModel.getUnreadNotifications(userId);
+            const sum = result.rows.length;
+            return res.status(200).json({ count: sum });
+        }
+        catch (err) {
+            logger.error('getUnreadCount error: %o', err, { requestId: rid });
+            return res.status(500).send('Server Error');
+        }
     },
     getUnreadNotifications: async (req, res) => {
-        return res.status(501).json({ error: 'Not Implemented' });
+        const rid = req.requestId;
+        const userId = req.user.user.id;
+        try {
+            const result = await NotificationsModel.getUnreadNotifications(userId);
+            return res.status(200).json(result.rows);
+        }
+        catch (err) {
+            logger.error('getUnreadNotifications error: %o', err, { requestId: rid });
+            return res.status(500).send('Server Error');
+        }
     },
     getNotificationsByType: async (req, res) => {
-        return res.status(501).json({ error: 'Not Implemented' });
+        const rid = req.requestId;
+        const userId = req.user.user.id;
+        const { type } = req.params;
+        try {
+            const result = await NotificationsModel.getNotificationsByType(userId, type);
+            return res.status(200).json(result.rows);
+        }
+        catch (err) {
+            logger.error('getNotificationsByType error: %o', err, { requestId: rid });
+            return res.status(500).send('Server Error');
+        }
     },
 };

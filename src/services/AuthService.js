@@ -8,7 +8,7 @@ const generateAccessToken = (user) => {
     const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '15m' });
     prisma.runTransaction(async (tx) => {
       await tx.tokens.updateMany({ where: { user_id: Number(user.user.id), type: 'AccessToken', valid: true }, data: { valid: false } });
-      await tx.tokens.create({ data: { value: token, user_id: Number(user.user.id), type: 'AccessToken', expire_date: new Date(Date.now() + 15 * 60 * 1000) } });
+      await tx.tokens.create({ data: { value: token, user_id: Number(user.user.id), type: 'AccessToken', expire_date: new Date(Date.now() + 999999 /* TODO: Update back to 15 minutes when testing is done*/ * 60 * 1000) } });
     });
     return token;
   } catch (err) {

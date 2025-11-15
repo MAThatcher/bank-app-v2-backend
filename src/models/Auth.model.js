@@ -8,10 +8,7 @@ const wrapRows = (data) => {
 
 module.exports = {
     findRefreshToken: async (refreshToken) => {
-        const row = await prisma.tokens.findFirst({
-            where: { value: refreshToken, valid: true, type: 'RefreshToken' },
-            select: { valid: true },
-        });
+        const row = await prisma.tokens.findFirst({ where: { value: refreshToken, valid: true, type: 'RefreshToken' }, select: { valid: true }, });
         return wrapRows(row);
     },
 
