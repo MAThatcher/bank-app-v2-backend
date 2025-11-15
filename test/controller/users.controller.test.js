@@ -111,7 +111,8 @@ describe('Users Controller', () => {
       const res = mockRes();
       sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [] });
 
-      await usersController.login(req, res);
+        const authController = require('../../src/controllers/auth.controller');
+        await authController.login(req, res);
 
       expect(res.status.calledOnceWith(401)).to.be.true;
       expect(res.json.firstCall.args[0]).to.deep.equal({ error: 'Email not found' });
@@ -123,7 +124,8 @@ describe('Users Controller', () => {
       sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [{ password: 'hash' }] });
       sinon.stub(bcrypt, 'compare').resolves(false);
 
-      await usersController.login(req, res);
+        const authController = require('../../src/controllers/auth.controller');
+        await authController.login(req, res);
 
       expect(res.status.calledOnceWith(401)).to.be.true;
       expect(res.json.firstCall.args[0]).to.deep.equal({ error: 'Invalid password' });
@@ -136,7 +138,8 @@ describe('Users Controller', () => {
       sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [mockUser] });
       sinon.stub(bcrypt, 'compare').resolves(true);
 
-      await usersController.login(req, res);
+        const authController = require('../../src/controllers/auth.controller');
+        await authController.login(req, res);
 
       expect(res.json.calledOnce).to.be.true;
       expect(res.json.firstCall.args[0]).to.have.property('accessToken', 'access-token');
@@ -148,7 +151,8 @@ describe('Users Controller', () => {
       const res = mockRes();
       sinon.stub(UsersModel, 'findUserByEmailVerified').throws(new Error('db'));
 
-      await usersController.login(req, res);
+        const authController = require('../../src/controllers/auth.controller');
+        await authController.login(req, res);
 
       expect(res.status.calledOnceWith(500)).to.be.true;
       expect(res.send.calledOnceWith('Server Error')).to.be.true;

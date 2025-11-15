@@ -1,11 +1,12 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const { generateAccessToken } = require('../services/AuthService');
+const { generateAccessToken, generateRefreshToken } = require('../services/AuthService');
 const { sendResetEmail } = require('../services/NodeMailer');
 const AuthModel = require('../models/Auth.model');
+const UsersModel = require('../models/Users.model');
 require('dotenv').config();
 const logger = require('../Utilities/logger');
-const { log } = require('winston');
+//const { log } = require('winston');
 
 module.exports = {
     refresh: async (req, res) => {
@@ -71,5 +72,32 @@ module.exports = {
             logger.error('resetPassword error: %o', err, { requestId: rid });
             return res.status(500).json({ message: 'Failed to reset password' });
         }
-    }
+    },
+
+    login: async (req, res) => {
+        const { email, password } = req.body;
+        const rid = req.requestId;
+        try {
+            const result = await UsersModel.findUserByEmailVerified(email);
+            if (result.rows.length === 0) {
+                return res.status(401).json({ error: 'Email not found' });
+            }
+            const user = result.rows[0];
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(401).json({ error: 'Invalid password' });
+            }
+            delete user.password;
+            const accessToken = generateAccessToken({ user });
+            const refreshToken = generateRefreshToken({ user });
+            return res.status(200).json({ accessToken, refreshToken, message: 'Login Successful' });
+        } catch (err) {
+            logger.error('login error: %o', { requestId: rid, error: err });
+            return res.status(500).send('Server Error');
+        }
+    },
+    
+    logout: async (_req, res) => {
+        return res.status(501).json({ error: 'Not Implemented' });
+    },
 };

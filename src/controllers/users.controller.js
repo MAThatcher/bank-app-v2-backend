@@ -1,10 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { sendVerificationEmail } = require('../services/NodeMailer');
-const {
-    generateAccessToken,
-    generateRefreshToken,
-} = require('../services/AuthService');
 const UsersModel = require('../models/Users.model');
 require('dotenv').config();
 const logger = require('../Utilities/logger');
@@ -38,28 +34,7 @@ module.exports = {
         }
     },
 
-    login: async (req, res) => {
-        const { email, password } = req.body;
-        const rid = req.requestId;
-        try {
-            const result = await UsersModel.findUserByEmailVerified(email);
-            if (result.rows.length === 0) {
-                return res.status(401).json({ error: 'Email not found' });
-            }
-            const user = result.rows[0];
-            const isMatch = await bcrypt.compare(password, user.password);
-            if (!isMatch) {
-                return res.status(401).json({ error: 'Invalid password' });
-            }
-            delete user.password;
-            const accessToken = generateAccessToken({ user });
-            const refreshToken = generateRefreshToken({ user });
-            return res.status(200).json({ accessToken, refreshToken, message: 'Login Successful' });
-        } catch (err) {
-            logger.error('login error: %o', { requestId: rid, error: err });
-            return res.status(500).send('Server Error');
-        }
-    },
+    
 
     register: async (req, res) => {
         const { email, password } = req.body;
@@ -120,10 +95,6 @@ module.exports = {
         }
     },
     //TODO
-    logout: async (req, res) => {
-        return res.status(501).json({ error: 'Not Implemented' });
-    },
-
     changePassword: async (req, res) => {
         return res.status(501).json({ error: 'Not Implemented' });
     }

@@ -5,15 +5,12 @@ const UsersController = require('../controllers/users.controller');
 
 //Get user details for logged in user
 router.get('/', authenticateToken, UsersController.getUserDetails);
-//User login, registration, email verification, deletion
-router.post('/login', UsersController.login);
+//User registration, email verification, deletion
 router.post('/', UsersController.register);
 router.get('/verify-email/:token', UsersController.verifyEmail);
 //Delete user account
 router.delete('/', authenticateToken, UsersController.deleteUser);
 //TODO
-//logout user
-router.post('/logout', authenticateToken, UsersController.logout);
 //change user password
 router.post('/change-password', authenticateToken, UsersController.changePassword);
 

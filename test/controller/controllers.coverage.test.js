@@ -8,6 +8,7 @@ const TransactionsController = require('../../src/controllers/transactions.contr
 const NotificationsController = require('../../src/controllers/notifications.controller');
 const DashboardController = require('../../src/controllers/dashboard.controller');
 const UsersController = require('../../src/controllers/users.controller');
+const AuthController = require('../../src/controllers/auth.controller');
 
 const AccountsModel = require('../../src/models/Accounts.model');
 const TransactionsModel = require('../../src/models/Transactions.model');
@@ -301,14 +302,14 @@ describe('Controller coverage - exercise branches', () => {
         const req = { body: { email: 'e@f.com', password: 'pw' } };
         const res = mockRes();
         sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [] });
-        await UsersController.login(req, res);
+        await AuthController.login(req, res);
         expect(res.status.calledWith(401)).to.be.true;
 
         sinon.restore();
         sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [{ id: 1, password: 'hash' }] });
         sinon.stub(bcrypt, 'compare').resolves(false);
         const res2 = mockRes();
-        await UsersController.login(req, res2);
+        await AuthController.login(req, res2);
         expect(res2.status.calledWith(401)).to.be.true;
 
         sinon.restore();
@@ -317,7 +318,7 @@ describe('Controller coverage - exercise branches', () => {
         sinon.stub(AuthService, 'generateAccessToken').returns('at');
         sinon.stub(AuthService, 'generateRefreshToken').returns('rt');
         const res3 = mockRes();
-        await UsersController.login(req, res3);
+        await AuthController.login(req, res3);
         expect(res3.status.calledWith(200)).to.be.true;
     });
 
