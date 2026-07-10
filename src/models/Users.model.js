@@ -1,8 +1,12 @@
 const prisma = require('../prisma/client');
 
 const wrapRows = (data) => {
-    if (!data) return { rows: [] };
-    if (Array.isArray(data)) return { rows: data };
+    if (!data) {
+        return { rows: [] };
+    }
+    if (Array.isArray(data)) {
+        return { rows: data };
+    }
     return { rows: [data] };
 };
 
