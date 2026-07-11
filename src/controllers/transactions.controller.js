@@ -4,8 +4,8 @@ module.exports = {
     getTransactions: async (req, res) => {
         const { accountId } = req.params;
         try {
-            let userId = req.user.user.id;
-            let validUser = await TransactionsModel.checkUserAccountAccess(userId, accountId);
+            const userId = req.user.user.id;
+            const validUser = await TransactionsModel.checkUserAccountAccess(userId, accountId);
             if (validUser.rows.length === 0) {
                 return res.status(404).json({ error: 'No Authorized Accounts for this User' });
             }
@@ -20,9 +20,9 @@ module.exports = {
     createTransaction: async (req, res) => {
         const { transactionAmount, accountId, description } = req.body;
         try {
-            let userId = req.user.user.id;
+            const userId = req.user.user.id;
 
-            let validUser = await TransactionsModel.checkUserAccountAccess(userId, accountId);
+            const validUser = await TransactionsModel.checkUserAccountAccess(userId, accountId);
             if (validUser.rows.length === 0) {
                 return res.status(404).json({ error: 'No Authorized Accounts for this User' });
             }
