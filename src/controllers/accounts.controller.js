@@ -51,7 +51,7 @@ module.exports = {
     deleteAccount: async (req, res) => {
         const { accountId } = req.params;
         try {
-            let userId = req.user.user.id;
+            const userId = req.user.user.id;
 
             const result = await AccountsModel.getAccountOwnerAndBalance(userId, accountId);
             if (result.rows.length === 0) {
@@ -76,7 +76,7 @@ module.exports = {
         const { accountId } = req.params;
         const { email } = req.body;
         try {
-            let userId = req.user.user.id;
+            const userId = req.user.user.id;
 
             const result = await AccountsModel.getAccountByOwnerAndId(userId, accountId);
             if (result.rows.length === 0) {
