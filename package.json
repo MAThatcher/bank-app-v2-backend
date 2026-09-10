@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
-  "start": "node src/index.js",
-  "test": "jest --coverage --detectOpenHandles",
-  "prisma:generate": "node scripts/prisma-runner.js generate",
-  "prisma:introspect": "node scripts/prisma-runner.js db pull",
-  "prisma:migrate": "node scripts/prisma-runner.js migrate dev"
+    "start": "node src/index.js",
+    "test": "jest --coverage --detectOpenHandles",
+    "test:transfers:db": "node test/integration/transfers.postgres.js",
+    "db:enable-transfers": "node scripts/apply-transfer-schema.js",
+    "db:enable-notification-email": "node scripts/apply-notification-email-schema.js",
+    "prisma:generate": "node scripts/prisma-runner.js generate",
+    "prisma:introspect": "node scripts/prisma-runner.js db pull",
+    "prisma:migrate": "node scripts/prisma-runner.js migrate dev"
   },
   "keywords": [],
   "author": "",
@@ -17,11 +20,14 @@
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.15.6"
+    "morgan": "^1.10.0",
+    "pg": "^8.15.6",
+    "winston": "^3.9.0"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.26.0",

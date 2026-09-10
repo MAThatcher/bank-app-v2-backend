@@ -4,6 +4,7 @@ if (process.env.NODE_ENV === 'test') {
     const noopAsync = async () => { };
     const makeModel = () => ({
         findMany: noopAsync,
+        count: noopAsync,
         findUnique: noopAsync,
         findFirst: noopAsync,
         create: noopAsync,
@@ -16,9 +17,11 @@ if (process.env.NODE_ENV === 'test') {
         account_users: makeModel(),
         users: makeModel(),
         transactions: makeModel(),
+        transfers: makeModel(),
         tokens: makeModel(),
         notifications: makeModel(),
         user_details: makeModel(),
+        $queryRaw: noopAsync,
 
         runTransaction: async (cb) => {
             return await cb(module.exports);
@@ -27,10 +30,10 @@ if (process.env.NODE_ENV === 'test') {
 } else {
     const prisma = new PrismaClient();
 
-    prisma.runTransaction = async (cb) => {
+    prisma.runTransaction = async (cb, options) => {
         return await prisma.$transaction(async (tx) => {
             return await cb(tx);
-        });
+        }, options);
     };
 
     module.exports = prisma;

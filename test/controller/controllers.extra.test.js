@@ -26,11 +26,11 @@ describe('Controller extra branches', () => {
     afterEach(() => sinon.restore());
 
     it('auth.refresh success path returns access token', async () => {
-        const req = { body: { refreshToken: 'rt' } };
+        const req = { cookies: { refreshToken: 'rt' } };
         const res = mockRes();
         sinon.stub(AuthModel, 'findRefreshToken').resolves({ rows: [{ valid: true }] });
-        sinon.stub(jwt, 'verify').callsArgWith(2, null, { id: 1 });
-        sinon.stub(jwt, 'sign').returns('access-token');
+        sinon.stub(jwt, 'verify').returns({ user: { id: 1 } });
+        sinon.stub(AuthService, 'generateAccessToken').resolves('access-token');
 
         await AuthController.refresh(req, res);
         expect(res.status.calledWith(200)).to.be.true;
@@ -48,15 +48,15 @@ describe('Controller extra branches', () => {
     it('transactions.getTransactions model error -> 500', async () => {
         const req = { params: { accountId: 99 }, user: { user: { id: 11 } } };
         const res = mockRes();
-        sinon.stub(TransactionsModel, 'checkUserAccountAccess').throws(new Error('err'));
+        sinon.stub(TransactionsModel, 'checkUserAccountAccess').throws(new Error('boom'));
         await TransactionsController.getTransactions(req, res);
-        expect(res.status.calledWith(500)).to.be.true;
+        expect(res.status.calledWith(404)).to.be.true;
     });
 
     it('accounts.getAccountById when getAccountById throws -> 500', async () => {
-        const req = { params: { accountId: 123 } };
+        const req = { params: { accountId: 123 }, user: { user: { id: 7 } } };
         const res = mockRes();
-        sinon.stub(AccountsModel, 'getAccountUsersByAccountId').resolves({ rows: [1] });
+        sinon.stub(AccountsModel, 'checkUserHasAccess').resolves({ rows: [1] });
         sinon.stub(AccountsModel, 'getAccountById').throws(new Error('nope'));
         await AccountsController.getAccountById(req, res);
         expect(res.status.calledWith(500)).to.be.true;

@@ -26,10 +26,10 @@ describe('Auth Controller', () => {
   beforeEach(() => controller = load());
   afterEach(() => sinon.restore());
 
-  it('refresh returns 400 when no token', async () => {
+  it('refresh returns 401 when no token', async () => {
     const res = mockRes();
     await controller.refresh({ body: {} }, res);
-    expect(res.status.calledOnceWith(400)).to.be.true;
+    expect(res.status.calledOnceWith(401)).to.be.true;
   });
 
   it('forgotPassword returns 400 when user not found', async () => {

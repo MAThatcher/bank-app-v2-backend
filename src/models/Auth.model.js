@@ -8,10 +8,7 @@ const wrapRows = (data) => {
 
 module.exports = {
     findRefreshToken: async (refreshToken) => {
-        const row = await prisma.tokens.findFirst({
-            where: { value: refreshToken, valid: true, type: 'RefreshToken' },
-            select: { valid: true },
-        });
+        const row = await prisma.tokens.findFirst({ where: { value: refreshToken, valid: true, type: 'RefreshToken' }, select: { valid: true }, });
         return wrapRows(row);
     },
 
@@ -27,6 +24,14 @@ module.exports = {
 
     updateUserPassword: async (hashedPassword, id) => {
         await prisma.users.update({ where: { id: Number(id) }, data: { password: hashedPassword } });
+        return { rows: [] };
+    },
+
+    invalidateRefreshToken: async (refreshToken) => {
+        await prisma.tokens.updateMany({
+            where: { value: refreshToken, type: 'RefreshToken', valid: true },
+            data: { valid: false }
+        });
         return { rows: [] };
     },
 };

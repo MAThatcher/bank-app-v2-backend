@@ -17,17 +17,17 @@ function mockRes() {
 describe('Auth Controller - refresh', () => {
   afterEach(() => sinon.restore());
 
-  it('returns 400 when no token', async () => {
+  it('returns 401 when no token', async () => {
     const res = mockRes();
     await AuthController.refresh({ body: {} }, res);
-    expect(res.status.calledOnceWith(400)).to.be.true;
+    expect(res.status.calledOnceWith(401)).to.be.true;
   });
 
   it('returns 403 when token invalid during verify', async () => {
     sinon.stub(AuthModel, 'findRefreshToken').resolves({ rows: [{ valid: true }] });
-    sinon.stub(jwt, 'verify').callsFake((t, s, cb) => cb(new Error('invalid')));
+    sinon.stub(jwt, 'verify').throws(new Error('invalid'));
     const res = mockRes();
-    await AuthController.refresh({ body: { refreshToken: 'x' } }, res);
-    expect(res.sendStatus.called).to.be.true;
+    await AuthController.refresh({ cookies: { refreshToken: 'x' } }, res);
+    expect(res.status.calledOnceWith(403)).to.be.true;
   });
 });

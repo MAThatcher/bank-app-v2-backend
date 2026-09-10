@@ -19,6 +19,7 @@ function mockRes() {
   res.status = sinon.stub().returns(res);
   res.json = sinon.stub().returns(res);
   res.send = sinon.stub().returns(res);
+    res.cookie = sinon.stub().returns(res);
   return res;
 }
 
@@ -31,7 +32,8 @@ describe('Users Controller', () => {
 
     sinon.stub(NodeMailer, 'sendVerificationEmail').resolves();
     sinon.stub(AuthService, 'generateAccessToken').returns('access-token');
-    sinon.stub(AuthService, 'generateRefreshToken').returns('refresh-token');
+    sinon.stub(AuthService, 'generateRefreshToken').resolves('refresh-token');
+    sinon.stub(jwt, 'decode').returns({ exp: 2000000000 });
 
     usersController = loadController();
   });
@@ -111,7 +113,8 @@ describe('Users Controller', () => {
       const res = mockRes();
       sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [] });
 
-      await usersController.login(req, res);
+        const authController = require('../../src/controllers/auth.controller');
+        await authController.login(req, res);
 
       expect(res.status.calledOnceWith(401)).to.be.true;
       expect(res.json.firstCall.args[0]).to.deep.equal({ error: 'Email not found' });
@@ -123,7 +126,8 @@ describe('Users Controller', () => {
       sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [{ password: 'hash' }] });
       sinon.stub(bcrypt, 'compare').resolves(false);
 
-      await usersController.login(req, res);
+        const authController = require('../../src/controllers/auth.controller');
+        await authController.login(req, res);
 
       expect(res.status.calledOnceWith(401)).to.be.true;
       expect(res.json.firstCall.args[0]).to.deep.equal({ error: 'Invalid password' });
@@ -136,11 +140,13 @@ describe('Users Controller', () => {
       sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [mockUser] });
       sinon.stub(bcrypt, 'compare').resolves(true);
 
-      await usersController.login(req, res);
+        const authController = require('../../src/controllers/auth.controller');
+        await authController.login(req, res);
 
       expect(res.json.calledOnce).to.be.true;
       expect(res.json.firstCall.args[0]).to.have.property('accessToken', 'access-token');
-      expect(res.json.firstCall.args[0]).to.have.property('refreshToken', 'refresh-token');
+      expect(res.json.firstCall.args[0]).not.to.have.property('refreshToken');
+      expect(res.cookie.calledWith('refreshToken', 'refresh-token', sinon.match({ httpOnly: true }))).to.be.true;
     });
 
     it('returns 500 on error', async () => {
@@ -148,7 +154,8 @@ describe('Users Controller', () => {
       const res = mockRes();
       sinon.stub(UsersModel, 'findUserByEmailVerified').throws(new Error('db'));
 
-      await usersController.login(req, res);
+        const authController = require('../../src/controllers/auth.controller');
+        await authController.login(req, res);
 
       expect(res.status.calledOnceWith(500)).to.be.true;
       expect(res.send.calledOnceWith('Server Error')).to.be.true;
@@ -214,6 +221,7 @@ describe('Users Controller', () => {
       sinon.stub(jwt, 'verify').returns({ email: 'a@b.com' });
       const prisma = require('../../src/prisma/client');
       sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
+      sinon.stub(UsersModel, 'findUserByEmail').resolves({ rows: [{ isVerified: false }] });
       sinon.stub(UsersModel, 'setVerifiedByEmail').resolves();
 
       await usersController.verifyEmail(req, res);
