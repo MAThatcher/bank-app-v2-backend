@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../services/AuthService');
 const AccountsController = require('../controllers/accounts.controller');
+const VaultSettingsController = require('../controllers/vaultSettings.controller');
+router.get('/:accountId/settings', authenticateToken, VaultSettingsController.settings);
 
 //Get All Accounts for User
 router.get('/', authenticateToken, AccountsController.getAccounts);

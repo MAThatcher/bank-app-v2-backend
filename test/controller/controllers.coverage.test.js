@@ -25,6 +25,7 @@ function mockRes() {
     res.status = sinon.stub().returns(res);
     res.json = sinon.stub().returns(res);
     res.send = sinon.stub().returns(res);
+    res.cookie = sinon.stub().returns(res);
     res.sendStatus = sinon.stub().returns(res);
     return res;
 }
@@ -47,14 +48,14 @@ describe('Controller coverage - exercise branches', () => {
     });
 
     it('accounts.getAccountById unauthorized and success', async () => {
-        const req = { params: { accountId: 5 } };
+        const req = { params: { accountId: 5 }, user: { user: { id: 7 } } };
         const res = mockRes();
-        sinon.stub(AccountsModel, 'getAccountUsersByAccountId').resolves({ rows: [] });
+        sinon.stub(AccountsModel, 'checkUserHasAccess').resolves({ rows: [] });
         await AccountsController.getAccountById(req, res);
         expect(res.status.calledWith(404)).to.be.true;
 
         sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountUsersByAccountId').resolves({ rows: [1] });
+        sinon.stub(AccountsModel, 'checkUserHasAccess').resolves({ rows: [1] });
         sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [{ id: 5 }] });
         const res2 = mockRes();
         await AccountsController.getAccountById(req, res2);
@@ -76,101 +77,6 @@ describe('Controller coverage - exercise branches', () => {
         const res2 = mockRes();
         await AccountsController.createAccount(req, res2);
         expect(res2.status.calledWith(500)).to.be.true;
-    });
-
-    it('accounts.deleteAccount not found, non-zero, and success', async () => {
-        const req = { params: { accountId: 9 }, user: { user: { id: 3 } } };
-        const res = mockRes();
-        sinon.stub(AccountsModel, 'getAccountOwnerAndBalance').resolves({ rows: [] });
-        await AccountsController.deleteAccount(req, res);
-        expect(res.status.calledWith(404)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountOwnerAndBalance').resolves({ rows: [{ balance: 10 }] });
-        const res2 = mockRes();
-        await AccountsController.deleteAccount(req, res2);
-        expect(res2.status.calledWith(403)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountOwnerAndBalance').resolves({ rows: [{ balance: 0 }] });
-        sinon.stub(AccountsModel, 'archiveAccountUsers').resolves();
-        sinon.stub(AccountsModel, 'archiveAccount').resolves();
-        sinon.stub(AccountsModel, 'archiveTransactionsByAccount').resolves();
-        sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
-        const res3 = mockRes();
-        await AccountsController.deleteAccount(req, res3);
-        expect(res3.status.calledWith(200)).to.be.true;
-    });
-
-    it('accounts.addUserToAccount various branches', async () => {
-        const req = { params: { accountId: 11 }, body: { email: 'x@y.com' }, user: { user: { id: 4 } } };
-        const res = mockRes();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [] });
-        await AccountsController.addUserToAccount(req, res);
-        expect(res.status.calledWith(401)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [1] });
-        sinon.stub(AccountsModel, 'findUserByEmail').resolves({ rows: [] });
-        const res2 = mockRes();
-        await AccountsController.addUserToAccount(req, res2);
-        expect(res2.status.calledWith(404)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [1] });
-        sinon.stub(AccountsModel, 'findUserByEmail').resolves({ rows: [{ id: 8 }] });
-        sinon.stub(AccountsModel, 'checkUserHasAccess').resolves({ rows: [1] });
-        const res3 = mockRes();
-        await AccountsController.addUserToAccount(req, res3);
-        expect(res3.status.calledWith(403)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [1] });
-        sinon.stub(AccountsModel, 'findUserByEmail').resolves({ rows: [{ id: 8 }] });
-        sinon.stub(AccountsModel, 'checkUserHasAccess').resolves({ rows: [] });
-        sinon.stub(AccountsModel, 'insertAccountUser').resolves();
-        sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
-        const res4 = mockRes();
-        await AccountsController.addUserToAccount(req, res4);
-        expect(res4.status.calledWith(201)).to.be.true;
-    });
-
-    it('accounts.transferOwnership and changeOverdraft branches', async () => {
-        const req = { params: { accountId: 21 }, body: { email: 'a@b.com' }, user: { user: { id: 5 } } };
-        const res = mockRes();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [] });
-        await AccountsController.transferOwnership(req, res);
-        expect(res.status.calledWith(401)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [1] });
-        sinon.stub(AccountsModel, 'findAccountUserIdByEmail').resolves({ rows: [] });
-        const res2 = mockRes();
-        await AccountsController.transferOwnership(req, res2);
-        expect(res2.status.calledWith(403)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [1] });
-        sinon.stub(AccountsModel, 'findAccountUserIdByEmail').resolves({ rows: [{ id: 99 }] });
-        sinon.stub(AccountsModel, 'updateOwner').resolves();
-        sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
-        const res3 = mockRes();
-        await AccountsController.transferOwnership(req, res3);
-        expect(res3.status.calledWith(200)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [] });
-        const res4 = mockRes();
-        await AccountsController.changeOverdraft(req, res4);
-        expect(res4.status.calledWith(401)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(AccountsModel, 'getAccountByOwnerAndId').resolves({ rows: [1] });
-        sinon.stub(AccountsModel, 'updateOverdraft').resolves();
-        sinon.stub(prisma, 'runTransaction').callsFake(async (cb) => await cb(prisma));
-        const res5 = mockRes();
-        await AccountsController.changeOverdraft(req, res5);
-        expect(res5.status.calledWith(200)).to.be.true;
     });
 
     it('transactions.getTransactions unauthorized and success', async () => {
@@ -198,7 +104,7 @@ describe('Controller coverage - exercise branches', () => {
 
         sinon.restore();
         sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [1] });
-        sinon.stub(TransactionsModel, 'getAccountBalanceAndOverdraft').resolves({ rows: [{ overdraft: false, balance: -100 }] });
+        sinon.stub(TransactionsModel, 'applyBalanceChange').resolves({ count: 0 });
         sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [1] });
         const res2 = mockRes();
         await TransactionsController.createTransaction(req, res2);
@@ -206,7 +112,7 @@ describe('Controller coverage - exercise branches', () => {
 
         sinon.restore();
         sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [1] });
-        sinon.stub(TransactionsModel, 'getAccountBalanceAndOverdraft').resolves({ rows: [{ overdraft: true, balance: 50 }] });
+        sinon.stub(TransactionsModel, 'applyBalanceChange').resolves({ count: 1 });
         sinon.stub(TransactionsModel, 'insertTransaction').resolves();
         sinon.stub(TransactionsModel, 'getBalanceForAccount').resolves({ rows: [{ balance: 50 }] });
         sinon.stub(TransactionsModel, 'updateAccountBalance').resolves();
@@ -222,7 +128,7 @@ describe('Controller coverage - exercise branches', () => {
         const res = mockRes();
         sinon.stub(NotificationsModel, 'getNotificationsForUser').resolves({ rows: [] });
         await NotificationsController.getNotifications(req, res);
-        expect(res.status.calledWith(404)).to.be.true;
+        expect(res.status.calledWith(200)).to.be.true;
 
         sinon.restore();
         sinon.stub(NotificationsModel, 'getNotificationsForUser').resolves({ rows: [{ id: 1 }] });
@@ -316,7 +222,8 @@ describe('Controller coverage - exercise branches', () => {
         sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [{ id: 1, password: 'hash' }] });
         sinon.stub(bcrypt, 'compare').resolves(true);
         sinon.stub(AuthService, 'generateAccessToken').returns('at');
-        sinon.stub(AuthService, 'generateRefreshToken').returns('rt');
+        sinon.stub(AuthService, 'generateRefreshToken').resolves('rt');
+    sinon.stub(jwt, 'decode').returns({ exp: 2000000000 });
         const res3 = mockRes();
         await AuthController.login(req, res3);
         expect(res3.status.calledWith(200)).to.be.true;

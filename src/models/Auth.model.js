@@ -26,4 +26,12 @@ module.exports = {
         await prisma.users.update({ where: { id: Number(id) }, data: { password: hashedPassword } });
         return { rows: [] };
     },
+
+    invalidateRefreshToken: async (refreshToken) => {
+        await prisma.tokens.updateMany({
+            where: { value: refreshToken, type: 'RefreshToken', valid: true },
+            data: { valid: false }
+        });
+        return { rows: [] };
+    },
 };

@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../services/AuthService');
 const TransactionsController = require('../controllers/transactions.controller');
+const TransfersController = require('../controllers/transfers.controller');
+const ArchivesController = require('../controllers/ledgerArchives.controller');
+router.get('/search', authenticateToken, ArchivesController.search);
+router.get('/summary', authenticateToken, ArchivesController.summary);
+router.get('/export', authenticateToken, ArchivesController.exportCsv);
+
+router.get('/transfer-accounts', authenticateToken, TransfersController.getTransferAccounts);
+router.post('/transfer', authenticateToken, TransfersController.createTransfer);
 
 router.get('/account/:accountId', authenticateToken, TransactionsController.getTransactions);
 router.post('/', authenticateToken, TransactionsController.createTransaction);
@@ -12,11 +20,8 @@ router.post('/', authenticateToken, TransactionsController.createTransaction);
 // router.get('/user/:userId', authenticateToken, TransactionsController.getTransactionsByUser);
 // router.get('/date-range', authenticateToken, TransactionsController.getTransactionsByDateRange);
 // router.get('/recent', authenticateToken, TransactionsController.getRecentTransactions);
-// router.get('/search', authenticateToken, TransactionsController.searchTransactions);
-// router.get('/summary', authenticateToken, TransactionsController.getTransactionSummary);
 // router.get('/monthly-report', authenticateToken, TransactionsController.getMonthlyReport);
 // router.get('/yearly-report', authenticateToken, TransactionsController.getYearlyReport);
-// router.get('/export', authenticateToken, TransactionsController.exportTransactions);
 // router.post('/import', authenticateToken, TransactionsController.importTransactions);
 // router.get('/statistics', authenticateToken, TransactionsController.getTransactionStatistics);
 // router.get('/categories', authenticateToken, TransactionsController.getTransactionCategories);

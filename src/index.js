@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.resolve(__dirname, 'config', '.env') });
 
 const express = require("express");
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const morgan = require('morgan');
 const logger = require('./Utilities/logger.js');
@@ -12,7 +13,11 @@ const errorHandler = require('./middleware/errorHandler');
 let app = express();
 
 app.use(bodyParser.json());
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    credentials: true
+}));
 
 app.use(requestId);
 
@@ -46,5 +51,6 @@ if (require.main === module) {
     logger.info(`Server running on port ${PORT}`);
     logger.debug('JWT_SECRET loaded: %s', process.env.JWT_SECRET ? 'yes' : 'no');
     logger.debug('Env file used: %s', path.resolve(__dirname, 'config', '.env'));
+    require('./services/NotificationEmailWorker').startNotificationEmailWorker();
   });
 }

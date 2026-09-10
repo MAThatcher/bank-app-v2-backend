@@ -19,6 +19,7 @@ function mockRes() {
   res.status = sinon.stub().returns(res);
   res.json = sinon.stub().returns(res);
   res.send = sinon.stub().returns(res);
+    res.cookie = sinon.stub().returns(res);
   return res;
 }
 
@@ -31,7 +32,8 @@ describe('Users Controller', () => {
 
     sinon.stub(NodeMailer, 'sendVerificationEmail').resolves();
     sinon.stub(AuthService, 'generateAccessToken').returns('access-token');
-    sinon.stub(AuthService, 'generateRefreshToken').returns('refresh-token');
+    sinon.stub(AuthService, 'generateRefreshToken').resolves('refresh-token');
+    sinon.stub(jwt, 'decode').returns({ exp: 2000000000 });
 
     usersController = loadController();
   });
@@ -143,7 +145,8 @@ describe('Users Controller', () => {
 
       expect(res.json.calledOnce).to.be.true;
       expect(res.json.firstCall.args[0]).to.have.property('accessToken', 'access-token');
-      expect(res.json.firstCall.args[0]).to.have.property('refreshToken', 'refresh-token');
+      expect(res.json.firstCall.args[0]).not.to.have.property('refreshToken');
+      expect(res.cookie.calledWith('refreshToken', 'refresh-token', sinon.match({ httpOnly: true }))).to.be.true;
     });
 
     it('returns 500 on error', async () => {

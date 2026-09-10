@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const { generateAccessToken, generateRefreshToken } = require('../services/AuthService');
+const AuthService = require('../services/AuthService');
 const { sendResetEmail } = require('../services/NodeMailer');
 const AuthModel = require('../models/Auth.model');
 const UsersModel = require('../models/Users.model');
@@ -11,22 +11,26 @@ const logger = require('../Utilities/logger');
 module.exports = {
     refresh: async (req, res) => {
         const rid = req.requestId;
-        const { refreshToken } = req.body;
+        const refreshToken = req.cookies?.refreshToken;
         try {
             if (!refreshToken) {
-                return res.status(400).json({ message: 'No refresh token found' });
+                return res.status(401).json({ message: 'No refresh token found' });
             }
             let token = await AuthModel.findRefreshToken(refreshToken);
-            if (!token.rows[0].valid || token.rows.length === 0) {
-                return res.sendStatus(403).json({ message: 'Refresh Token not found' });
+            if (!token.rows[0]?.valid || token.rows.length === 0) {
+                return res.status(403).json({ message: 'Refresh Token not found' });
             }
-            jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
-                if (err) {
-                    return res.sendStatus(403).json({ message: 'Refresh Token not valid' });;
-                }
-                let accessToken = generateAccessToken({ user });
-                return res.status(200).json({ accessToken });
-            });
+
+            let decoded;
+            try {
+                decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+            } catch (err) {
+                logger.error('jwt.verify error: %o', { requestId: rid, error: err });
+                return res.status(403).json({ message: 'Refresh Token not valid' });
+            }
+            const accessToken = await AuthService.generateAccessToken({ user: decoded.user });
+            logger.info('Token refreshed successfully', { requestId: rid });
+            return res.status(200).json({ accessToken });
         } catch (error) {
             logger.error('auth.refresh error: %o', { requestId: rid, error: error });
             return res.status(500).json({ message: 'Error' });
@@ -88,16 +92,40 @@ module.exports = {
                 return res.status(401).json({ error: 'Invalid password' });
             }
             delete user.password;
-            const accessToken = generateAccessToken({ user });
-            const refreshToken = generateRefreshToken({ user });
-            return res.status(200).json({ accessToken, refreshToken, message: 'Login Successful' });
+            const accessToken = await AuthService.generateAccessToken({ user });
+            const refreshToken = await AuthService.generateRefreshToken({ user });
+
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                expires: new Date(jwt.decode(refreshToken).exp * 1000)
+            });
+
+            return res.status(200).json({ accessToken, message: 'Login Successful' });
         } catch (err) {
             logger.error('login error: %o', { requestId: rid, error: err });
             return res.status(500).send('Server Error');
         }
     },
-    
-    logout: async (_req, res) => {
-        return res.status(501).json({ error: 'Not Implemented' });
+
+    logout: async (req, res) => {
+        try {
+            const refreshToken = req.cookies?.refreshToken;
+            if (refreshToken) {
+                await AuthModel.invalidateRefreshToken(refreshToken);
+            }
+
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict'
+            });
+
+            return res.status(200).json({ message: 'Logout successful' });
+        } catch (error) {
+            logger.error('logout error: %o', { requestId: req.requestId, error });
+            return res.status(500).json({ message: 'Error during logout' });
+        }
     },
 };

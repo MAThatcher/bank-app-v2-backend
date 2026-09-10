@@ -22,12 +22,13 @@ describe('Notifications Controller', () => {
   beforeEach(() => controller = load());
   afterEach(() => sinon.restore());
 
-  it('getNotifications returns 404 when none', async () => {
+  it('getNotifications returns an empty inbox when none', async () => {
     const req = { user: { user: { id: 1 } } };
     const res = mockRes();
     sinon.stub(NotificationsModel, 'getNotificationsForUser').resolves({ rows: [] });
     await controller.getNotifications(req, res);
-    expect(res.status.calledOnceWith(404)).to.be.true;
+    expect(res.status.calledOnceWith(200)).to.be.true;
+    expect(res.json.firstCall.args[0]).to.deep.equal([]);
   });
 
   it('getNotifications returns rows', async () => {

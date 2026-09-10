@@ -24,7 +24,7 @@ const wrapRows = (data) => {
 module.exports = {
 
     getAccountsForUser: async (email) => {
-        const rows = await prisma.accounts.findMany({where:{archived: false, account_users:{some:{users:{email,archived:false,},},},},select:{id:true,name:true,balance:true,},});
+        const rows = await prisma.accounts.findMany({where:{archived: false, account_users:{some:{archived:false,users:{email,archived:false,},},},},select:{id:true,name:true,balance:true,},});
         return wrapRows(rows);
     },
 
@@ -49,7 +49,7 @@ module.exports = {
     },
 
     getAccountOwnerAndBalance: async (userId, accountId) => {
-        const rows = await prisma.accounts.findMany({ where: { owner: Number(userId), id: Number(accountId) }, select: { balance: true, owner: true, archived: Boolean(false) }, });
+        const rows = await prisma.accounts.findMany({ where: { owner: Number(userId), id: Number(accountId), archived: false }, select: { balance: true, owner: true }, });
         return wrapRows(rows);
     },
 
@@ -79,7 +79,7 @@ module.exports = {
     },
 
     checkUserHasAccess: async (accountId, userId) => {
-        const rows = await prisma.account_users.findMany({ where: { account_id: Number(accountId), user_id: Number(userId), archived: false }, });
+        const rows = await prisma.account_users.findMany({ where: { account_id: Number(accountId), user_id: Number(userId), archived: false, accounts: { archived: false }, users: { archived: false } }, });
         return wrapRows(rows);
     },
 

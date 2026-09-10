@@ -32,6 +32,8 @@ model accounts {
   users         users           @relation(fields: [owner], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
   tags          tags[]
   transactions  transactions[]
+  outgoing_transfers transfers[] @relation("transfer_source")
+  incoming_transfers transfers[] @relation("transfer_destination")
 }
 
 model notifications {
@@ -42,6 +44,13 @@ model notifications {
   user_id     Int
   dismissed   Boolean?  @default(false)
   type        String?   @db.VarChar(1020)
+  email_status String   @default("disabled") @db.VarChar(20)
+  email_attempts Int    @default(0)
+  email_next_attempt DateTime @default(now()) @db.Timestamp(6)
+  email_lease String?   @db.Uuid
+  email_locked_until DateTime? @db.Timestamp(6)
+  email_sent_at DateTime? @db.Timestamp(6)
+  email_last_error String? @db.VarChar(80)
   users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
 }
 
@@ -66,10 +75,35 @@ model transactions {
   amount      Decimal    @db.Decimal(13, 2)
   archived    Boolean?   @default(false)
   category    String     @db.VarChar(1020)
+  transfer_id String?    @db.Uuid
+  transfer    transfers? @relation(fields: [transfer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   disputes    disputes[]
   tags        tags[]
   accounts    accounts   @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_accounts")
   users       users      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+
+  @@unique([transfer_id, account_id])
+}
+
+model transfers {
+  id                        String   @id @default(uuid()) @db.Uuid
+  user_id                   Int
+  request_key               String   @db.Uuid
+  source_account_id         Int
+  destination_account_id    Int
+  amount                    Decimal  @db.Decimal(13, 2)
+  description               String   @db.VarChar(512)
+  source_balance_before     Decimal  @db.Decimal(13, 2)
+  source_balance_after      Decimal  @db.Decimal(13, 2)
+  destination_balance_before Decimal @db.Decimal(13, 2)
+  destination_balance_after Decimal  @db.Decimal(13, 2)
+  create_date               DateTime @default(now()) @db.Timestamp(6)
+  user                      users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  source                    accounts @relation("transfer_source", fields: [source_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  destination               accounts @relation("transfer_destination", fields: [destination_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions              transactions[]
+
+  @@unique([user_id, request_key])
 }
 
 model user_details {
@@ -105,6 +139,7 @@ model users {
   sessions        sessions[]
   tokens          tokens[]
   transactions    transactions[]
+  transfers       transfers[]
   two_factor_auth two_factor_auth?
   user_details    user_details[]
 }

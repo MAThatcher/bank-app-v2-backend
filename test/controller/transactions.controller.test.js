@@ -53,7 +53,7 @@ describe('Transactions Controller', () => {
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [{ id: 1, archived: false }] });
     sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [{ id: 1 }] });
-    sinon.stub(TransactionsModel, 'getAccountBalanceAndOverdraft').resolves({ rows: [{ overdraft: false, balance: '50' }] });
+    sinon.stub(TransactionsModel, 'applyBalanceChange').resolves({ count: 0 });
     await controller.createTransaction(req, res);
     expect(res.status.calledOnceWith(401)).to.be.true;
   });
@@ -63,7 +63,7 @@ describe('Transactions Controller', () => {
     const res = mockRes();
     sinon.stub(AccountsModel, 'getAccountById').resolves({ rows: [{ id: 1, archived: false }] });
     sinon.stub(TransactionsModel, 'checkUserAccountAccess').resolves({ rows: [{ id: 1 }] });
-    sinon.stub(TransactionsModel, 'getAccountBalanceAndOverdraft').resolves({ rows: [{ overdraft: true, balance: '50' }] });
+    sinon.stub(TransactionsModel, 'applyBalanceChange').resolves({ count: 1 });
     sinon.stub(TransactionsModel, 'insertTransaction').resolves();
     sinon.stub(TransactionsModel, 'getBalanceForAccount').resolves({ rows: [{ balance: '50' }] });
     sinon.stub(TransactionsModel, 'updateAccountBalance').resolves();
