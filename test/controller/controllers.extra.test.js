@@ -28,7 +28,7 @@ describe('Controller extra branches', () => {
     it('auth.refresh success path returns access token', async () => {
         const req = { cookies: { refreshToken: 'rt' } };
         const res = mockRes();
-        sinon.stub(AuthModel, 'findRefreshToken').resolves({ rows: [{ valid: true }] });
+        sinon.stub(require('../../src/services/SessionService'), 'refresh').resolves({ accessToken: 'access-token' });
         sinon.stub(jwt, 'verify').returns({ user: { id: 1 } });
         sinon.stub(AuthService, 'generateAccessToken').resolves('access-token');
 

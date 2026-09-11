@@ -5,7 +5,7 @@ const at = new Date('2026-09-10T12:00:00Z');
 const item = { id: 19, user_id: 7, type: 'transfer', message: 'Transfer completed.', email_attempts: 1 };
 beforeEach(() => {
     db = { $queryRaw: jest.fn().mockResolvedValueOnce([item]).mockResolvedValue([]),
-        notifications: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        user_preferences: { findUnique: jest.fn().mockResolvedValue(null) }, notifications: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
         users: { findFirst: jest.fn().mockResolvedValue({ email: 'recipient@example.test' }) } };
     send = jest.fn().mockResolvedValue({ accepted: ['recipient@example.test'] });
     dispatcher = createDispatcher({ db, send, now: () => at });
@@ -71,3 +71,7 @@ test.each(['javascript:alert(1)', 'ftp://example.test', 'https://user:password@e
     expect(() => notificationMail('a@example.test', item, { CLIENT_URL: url })).toThrow();
 });
 test('worker startup is disabled in unit tests', () => { expect(typeof startNotificationEmailWorker()).toBe('function'); });
+test('a recently disabled channel skips queued mail', async () => {
+    db.user_preferences.findUnique.mockResolvedValue({ notifications: { transfer: { email: false, inApp: true } } });
+    await dispatcher.runOnce(); expect(send).not.toHaveBeenCalled(); expect(lastWrite().data).toMatchObject({ email_status: 'skipped', email_last_error: 'PREFERENCE_DISABLED' });
+});

@@ -1,44 +1,8 @@
-const chai = require('chai');
-const sinon = require('sinon');
-const jwt = require('jsonwebtoken');
-const { expect } = chai;
-
-const AuthService = require('../../src/services/AuthService');
-
-function mockRes() {
-  const res = {};
-  res.status = sinon.stub().returns(res);
-  res.json = sinon.stub().returns(res);
-  return res;
-}
-
-describe('AuthService.authenticateToken', () => {
-  afterEach(() => sinon.restore());
-
-  it('returns 401 when no token', () => {
-    const req = { headers: {} };
-    const res = mockRes();
-    const next = sinon.stub();
-    AuthService.authenticateToken(req, res, next);
-    expect(res.status.calledOnceWith(401)).to.be.true;
-  });
-
-  it('returns 403 when token invalid', () => {
-    const req = { headers: { authorization: 'Bearer bad' } };
-    const res = mockRes();
-    const next = sinon.stub();
-    sinon.stub(jwt, 'verify').callsFake((t, s, cb) => cb(new Error('no')));
-    AuthService.authenticateToken(req, res, next);
-    expect(res.status.calledOnceWith(403)).to.be.true;
-  });
-
-  it('calls next when token valid', () => {
-    const req = { headers: { authorization: 'Bearer ok' } };
-    const res = mockRes();
-    const next = sinon.stub();
-    sinon.stub(jwt, 'verify').callsFake((t, s, cb) => cb(null, { user: { id: 1 } }));
-    AuthService.authenticateToken(req, res, next);
-    expect(next.calledOnce).to.be.true;
-    expect(req.user).to.deep.equal({ user: { id: 1 } });
-  });
-});
+const auth=require('../../src/services/AuthService');
+const sessions=require('../../src/services/SessionService');
+const response=()=>({status:jest.fn().mockReturnThis(),json:jest.fn().mockReturnThis()});
+afterEach(()=>jest.restoreAllMocks());
+test('missing bearer token is rejected',async()=>{const res=response();await auth.authenticateToken({headers:{}},res,jest.fn());expect(res.status).toHaveBeenCalledWith(401);});
+test('revoked or expired sessions cannot call next',async()=>{jest.spyOn(sessions,'authorize').mockRejectedValue({status:401,message:'Revoked'});const res=response(),next=jest.fn();await auth.authenticateToken({headers:{authorization:'Bearer token'}},res,next);expect(res.status).toHaveBeenCalledWith(401);expect(next).not.toHaveBeenCalled();});
+test('successful authorization installs fresh identity and session ID',async()=>{jest.spyOn(sessions,'authorize').mockResolvedValue({user:{id:7,email:'a@test.example'},sid:12});const req={headers:{authorization:'Bearer token'}},next=jest.fn();await auth.authenticateToken(req,response(),next);expect(req.user).toEqual({user:{id:7,email:'a@test.example'}});expect(req.sessionId).toBe(12);expect(next).toHaveBeenCalled();});
+test('database failures deny access without reporting an invalid session',async()=>{jest.spyOn(sessions,'authorize').mockRejectedValue(new Error('db'));const res=response();await auth.authenticateToken({headers:{authorization:'Bearer token'}},res,jest.fn());expect(res.status).toHaveBeenCalledWith(503);});

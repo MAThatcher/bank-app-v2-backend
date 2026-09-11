@@ -10,12 +10,19 @@ if (process.env.NODE_ENV === 'test') {
         create: noopAsync,
         update: noopAsync,
         updateMany: noopAsync,
+        upsert: noopAsync,
     });
 
     module.exports = {
         accounts: makeModel(),
         account_users: makeModel(),
         users: makeModel(),
+        sessions: makeModel(),
+        user_preferences: makeModel(),
+        disputes: makeModel(),
+        audit_logs: makeModel(),
+        impersonations: makeModel(),
+        dispute_events: makeModel(),
         transactions: makeModel(),
         transfers: makeModel(),
         tokens: makeModel(),

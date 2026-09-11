@@ -1,131 +1,36 @@
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-const AuthService = require('../services/AuthService');
-const { sendResetEmail } = require('../services/NodeMailer');
+const sessions = require('../services/SessionService');
 const AuthModel = require('../models/Auth.model');
-const UsersModel = require('../models/Users.model');
-require('dotenv').config();
+const { sendResetEmail } = require('../services/NodeMailer');
 const logger = require('../Utilities/logger');
-//const { log } = require('winston');
-
-module.exports = {
-    refresh: async (req, res) => {
-        const rid = req.requestId;
-        const refreshToken = req.cookies?.refreshToken;
-        try {
-            if (!refreshToken) {
-                return res.status(401).json({ message: 'No refresh token found' });
-            }
-            let token = await AuthModel.findRefreshToken(refreshToken);
-            if (!token.rows[0]?.valid || token.rows.length === 0) {
-                return res.status(403).json({ message: 'Refresh Token not found' });
-            }
-
-            let decoded;
-            try {
-                decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-            } catch (err) {
-                logger.error('jwt.verify error: %o', { requestId: rid, error: err });
-                return res.status(403).json({ message: 'Refresh Token not valid' });
-            }
-            const accessToken = await AuthService.generateAccessToken({ user: decoded.user });
-            logger.info('Token refreshed successfully', { requestId: rid });
-            return res.status(200).json({ accessToken });
-        } catch (error) {
-            logger.error('auth.refresh error: %o', { requestId: rid, error: error });
-            return res.status(500).json({ message: 'Error' });
-        }
-    },
-
-    forgotPassword: async (req, res) => {
-        const rid = req.requestId
-        try {
-            const { email } = req.body;
-            const user = await AuthModel.findUserByEmailVerified(email);
-            if (user.rows.length === 0) {
-                return res.status(400).json({ message: 'User not found' });
-            }
-            const token = jwt.sign(user.rows[0], process.env.JWT_SECRET, { expiresIn: '15m' });
-            sendResetEmail(token, email);
-            return res.status(200).json({ message: 'Password reset email sent' });
-        } catch (error) {
-            logger.error('forgotPassword error: %o', error, { requestId: rid });
-            return res.status(500).json({ message: 'Error sending email' });
-        }
-    },
-
-    resetPassword: async (req, res) => {
-        const rid = req.requestId
-        const { password, token } = req.body;
-        try {
-            if (!token) {
-                return res.status(400).json({ message: 'No token provided' });
-            }
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            if (!decoded || !decoded.id) {
-                return res.status(400).json({ message: 'Invalid token' });
-            }
-            const user = await AuthModel.findUserByIdVerified(decoded.id);
-            if (!user) {
-                return res.status(404).json({ message: 'User Not Found' });
-            }
-            const hashedPassword = await bcrypt.hash(password, 10);
-            await AuthModel.updateUserPassword(hashedPassword, decoded.id);
-            return res.status(200).json({ message: 'Password reset successfully' });
-        } catch (err) {
-            logger.error('resetPassword error: %o', err, { requestId: rid });
-            return res.status(500).json({ message: 'Failed to reset password' });
-        }
-    },
-
-    login: async (req, res) => {
-        const { email, password } = req.body;
-        const rid = req.requestId;
-        try {
-            const result = await UsersModel.findUserByEmailVerified(email);
-            if (result.rows.length === 0) {
-                return res.status(401).json({ error: 'Email not found' });
-            }
-            const user = result.rows[0];
-            const isMatch = await bcrypt.compare(password, user.password);
-            if (!isMatch) {
-                return res.status(401).json({ error: 'Invalid password' });
-            }
-            delete user.password;
-            const accessToken = await AuthService.generateAccessToken({ user });
-            const refreshToken = await AuthService.generateRefreshToken({ user });
-
-            res.cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                expires: new Date(jwt.decode(refreshToken).exp * 1000)
-            });
-
-            return res.status(200).json({ accessToken, message: 'Login Successful' });
-        } catch (err) {
-            logger.error('login error: %o', { requestId: rid, error: err });
-            return res.status(500).send('Server Error');
-        }
-    },
-
-    logout: async (req, res) => {
-        try {
-            const refreshToken = req.cookies?.refreshToken;
-            if (refreshToken) {
-                await AuthModel.invalidateRefreshToken(refreshToken);
-            }
-
-            res.clearCookie('refreshToken', {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict'
-            });
-
-            return res.status(200).json({ message: 'Logout successful' });
-        } catch (error) {
-            logger.error('logout error: %o', { requestId: req.requestId, error });
-            return res.status(500).json({ message: 'Error during logout' });
-        }
-    },
+const cookieOptions = () => ({httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict'});
+const clearCookie = res => res.clearCookie('refreshToken',cookieOptions());
+const handle = fn => async(req,res)=>{
+    try {return await fn(req,res);} catch(error) {
+        if(error.status) return res.status(error.status).json({error:error.message,code:error.code});
+        logger.error('Authentication request failed',{requestId:req.requestId,code:error.code||'AUTH_ERROR'});
+        return res.status(500).json({error:'Unable to complete this request. Please retry.'});
+    }
+};
+module.exports={
+    login:handle(async(req,res)=>{
+        const result=await sessions.login(req.body?.email,req.body?.password,{ip:req.ip,agent:req.get?.('user-agent')||req.headers?.['user-agent']});
+        res.cookie('refreshToken',result.refreshToken,{...cookieOptions(),expires:result.refreshExpires});
+        return res.status(200).json({accessToken:result.accessToken,message:'Login Successful'});
+    }),
+    refresh:handle(async(req,res)=>{const result=await sessions.refresh(req.cookies?.refreshToken);return res.status(200).json(result);}),
+    logout:handle(async(req,res)=>{
+        await sessions.revoke(req.user.user.id,req.sessionId,req.sessionId);clearCookie(res);
+        return res.status(200).json({message:'Logout successful'});
+    }),
+    forgotPassword:handle(async(req,res)=>{
+        const email=req.body?.email;
+        if(typeof email!=='string'||email.length>255) return res.status(400).json({error:'Enter a valid email address.'});
+        const result=await AuthModel.findUserByEmailVerified(email.trim());
+        if(result.rows[0]) await sendResetEmail(sessions.resetToken(result.rows[0]),email.trim());
+        return res.status(200).json({message:'If this address belongs to a verified account, password reset instructions have been sent.'});
+    }),
+    resetPassword:handle(async(req,res)=>{
+        const result=await sessions.resetPassword(req.body?.token,req.body?.password);clearCookie(res);
+        return res.status(200).json(result);
+    }),
 };

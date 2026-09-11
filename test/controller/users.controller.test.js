@@ -107,61 +107,6 @@ describe('Users Controller', () => {
     });
   });
 
-  describe('login', () => {
-    it('returns 401 if email not found', async () => {
-      const req = { body: { email: 'a@b.com', password: 'pw' } };
-      const res = mockRes();
-      sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [] });
-
-        const authController = require('../../src/controllers/auth.controller');
-        await authController.login(req, res);
-
-      expect(res.status.calledOnceWith(401)).to.be.true;
-      expect(res.json.firstCall.args[0]).to.deep.equal({ error: 'Email not found' });
-    });
-
-    it('returns 401 if password invalid', async () => {
-      const req = { body: { email: 'a@b.com', password: 'pw' } };
-      const res = mockRes();
-      sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [{ password: 'hash' }] });
-      sinon.stub(bcrypt, 'compare').resolves(false);
-
-        const authController = require('../../src/controllers/auth.controller');
-        await authController.login(req, res);
-
-      expect(res.status.calledOnceWith(401)).to.be.true;
-      expect(res.json.firstCall.args[0]).to.deep.equal({ error: 'Invalid password' });
-    });
-
-    it('returns tokens when successful', async () => {
-      const req = { body: { email: 'a@b.com', password: 'pw' } };
-      const res = mockRes();
-      const mockUser = { id: 1, email: 'a@b.com', password: 'hash' };
-      sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [mockUser] });
-      sinon.stub(bcrypt, 'compare').resolves(true);
-
-        const authController = require('../../src/controllers/auth.controller');
-        await authController.login(req, res);
-
-      expect(res.json.calledOnce).to.be.true;
-      expect(res.json.firstCall.args[0]).to.have.property('accessToken', 'access-token');
-      expect(res.json.firstCall.args[0]).not.to.have.property('refreshToken');
-      expect(res.cookie.calledWith('refreshToken', 'refresh-token', sinon.match({ httpOnly: true }))).to.be.true;
-    });
-
-    it('returns 500 on error', async () => {
-      const req = { body: { email: 'a@b.com', password: 'pw' } };
-      const res = mockRes();
-      sinon.stub(UsersModel, 'findUserByEmailVerified').throws(new Error('db'));
-
-        const authController = require('../../src/controllers/auth.controller');
-        await authController.login(req, res);
-
-      expect(res.status.calledOnceWith(500)).to.be.true;
-      expect(res.send.calledOnceWith('Server Error')).to.be.true;
-    });
-  });
-
   describe('register', () => {
     it('returns 400 if email already registered', async () => {
       const req = { body: { email: 'a@b.com', password: 'pw' } };

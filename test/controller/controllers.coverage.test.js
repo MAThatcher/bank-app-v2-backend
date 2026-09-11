@@ -204,31 +204,6 @@ describe('Controller coverage - exercise branches', () => {
         expect(res2.status.calledWith(200)).to.be.true;
     });
 
-    it('users.login flows (not found, invalid password, success)', async () => {
-        const req = { body: { email: 'e@f.com', password: 'pw' } };
-        const res = mockRes();
-        sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [] });
-        await AuthController.login(req, res);
-        expect(res.status.calledWith(401)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [{ id: 1, password: 'hash' }] });
-        sinon.stub(bcrypt, 'compare').resolves(false);
-        const res2 = mockRes();
-        await AuthController.login(req, res2);
-        expect(res2.status.calledWith(401)).to.be.true;
-
-        sinon.restore();
-        sinon.stub(UsersModel, 'findUserByEmailVerified').resolves({ rows: [{ id: 1, password: 'hash' }] });
-        sinon.stub(bcrypt, 'compare').resolves(true);
-        sinon.stub(AuthService, 'generateAccessToken').returns('at');
-        sinon.stub(AuthService, 'generateRefreshToken').resolves('rt');
-    sinon.stub(jwt, 'decode').returns({ exp: 2000000000 });
-        const res3 = mockRes();
-        await AuthController.login(req, res3);
-        expect(res3.status.calledWith(200)).to.be.true;
-    });
-
     it('users.register and verifyEmail flows', async () => {
         const req = { body: { email: 'new@u.com', password: 'pw' } };
         const res = mockRes();

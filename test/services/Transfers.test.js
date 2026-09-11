@@ -24,7 +24,7 @@ beforeEach(() => {
             create: jest.fn().mockImplementation(async ({ data }) => ({ ...data, create_date: new Date('2026-09-09T12:00:00Z') })),
         },
         transactions: { create: jest.fn().mockResolvedValue({}) },
-        notifications: { create: jest.fn().mockResolvedValue({}) },
+        user_preferences: { findUnique: jest.fn().mockResolvedValue(null) }, notifications: { create: jest.fn().mockResolvedValue({}) },
     };
     jest.spyOn(prisma, 'runTransaction').mockImplementation(cb => cb(tx));
 });

@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../services/AuthService');
 const UsersController = require('../controllers/users.controller');
+const SecurityController = require('../controllers/security.controller');
+const PreferencesController = require('../controllers/preferences.controller');
+router.get('/me/preferences', authenticateToken, PreferencesController.get);
+router.put('/me/preferences/notifications', authenticateToken, PreferencesController.notifications);
+router.put('/me/preferences/dashboard', authenticateToken, PreferencesController.dashboard);
+router.get('/me/sessions', authenticateToken, SecurityController.list);
+router.delete('/me/sessions/others', authenticateToken, SecurityController.others);
+router.delete('/me/sessions/:sessionId', authenticateToken, SecurityController.revoke);
 
 //Get user details for logged in user
 router.get('/', authenticateToken, UsersController.getUserDetails);

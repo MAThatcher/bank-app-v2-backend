@@ -45,12 +45,12 @@ test.each(['/garbage', '/0', '/-1', '/999999999999999999999', '?limit=101', '?be
 test('another user cannot read a notification', async () => {
     const find = jest.spyOn(prisma.notifications, 'findFirst').mockResolvedValue(null);
     expect((await call('get', '/19')).status).toBe(404);
-    expect(find).toHaveBeenCalledWith(expect.objectContaining({ where: { user_id: 7, id: 19 } }));
+    expect(find).toHaveBeenCalledWith(expect.objectContaining({ where: { user_id: 7, id: 19, in_app: true } }));
 });
 test('a zero-row dismissal is a 404 rather than a false success', async () => {
     const update = jest.spyOn(prisma.notifications, 'updateMany').mockResolvedValue({ count: 0 });
     expect((await call('patch', '/19')).status).toBe(404);
-    expect(update.mock.calls[0][0].where).toEqual({ user_id: 7, id: 19 });
+    expect(update.mock.calls[0][0].where).toEqual({ user_id: 7, id: 19, in_app: true });
 });
 test('dismissing an owned notification succeeds, including repeated requests', async () => {
     jest.spyOn(prisma.notifications, 'updateMany').mockResolvedValue({ count: 1 });
@@ -67,7 +67,7 @@ test('public creation cannot impersonate a system event or choose another recipi
     const create = jest.spyOn(prisma.notifications, 'create').mockResolvedValue({ id: 3 });
     const result = await call('post').send({ message: ' My note ', user_id: 99, type: 'transfer' });
     expect(result.status).toBe(201);
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: { message: 'My note', user_id: 7, type: 'general', dismissed: false } }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: { message: 'My note', user_id: 7, type: 'general', dismissed: false, in_app: true, email_status: 'disabled' } }));
 });
 test.each(['', '   ', {}, 'a'.repeat(1021)])('invalid messages are rejected', async message => {
     expect((await call('post').send({ message })).status).toBe(400);
