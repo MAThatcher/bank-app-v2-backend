@@ -43,6 +43,7 @@ model notifications {
   update_date DateTime? @default(now()) @db.Timestamp(6)
   user_id     Int
   dismissed   Boolean?  @default(false)
+  in_app      Boolean   @default(true)
   type        String?   @db.VarChar(1020)
   email_status String   @default("disabled") @db.VarChar(20)
   email_attempts Int    @default(0)
@@ -142,6 +143,7 @@ model users {
   transfers       transfers[]
   two_factor_auth two_factor_auth?
   user_details    user_details[]
+  preferences     user_preferences?
 }
 
 model audit_logs {
@@ -165,6 +167,25 @@ model disputes {
   resolution     String?      @db.VarChar(2048)
   transactions   transactions @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_transactions")
   users          users        @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+  events         dispute_events[]
+}
+
+model user_preferences {
+  user_id       Int @id
+  notifications Json @default("{}")
+  dashboard     Json @default("{}")
+  users         users @relation(fields: [user_id], references: [id], onDelete: NoAction)
+}
+
+model dispute_events {
+  id         Int @id @default(autoincrement())
+  dispute_id Int
+  actor_id   Int
+  status     String @db.VarChar(255)
+  note       String @db.VarChar(2048)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  dispute    disputes @relation(fields: [dispute_id], references: [id], onDelete: NoAction)
+  @@index([dispute_id, id])
 }
 
 model sessions {
@@ -175,7 +196,45 @@ model sessions {
   ip_address  String    @db.VarChar(45)
   user_agent  String?   @db.VarChar(512)
   valid       Boolean?  @default(true)
+  expires_at  DateTime  @default(now()) @db.Timestamp(6)
   users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users")
+}
+
+model impersonations {
+  id         String @id @db.Uuid
+  admin_id   Int
+  target_id  Int
+  session_id Int
+  reason     String @db.VarChar(500)
+  read_only  Boolean @default(true)
+  active     Boolean @default(true)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  expires_at DateTime @db.Timestamp(6)
+  ended_at   DateTime? @db.Timestamp(6)
+  @@index([session_id, active], map: "impersonations_session_idx")
+}
+
+model ledger_labels {
+  id Int @id @default(autoincrement())
+  user_id Int
+  kind String @db.VarChar(10)
+  name String @db.VarChar(60)
+  color String @default("#c1a267") @db.VarChar(7)
+  archived Boolean @default(false)
+  @@unique([id,user_id])
+}
+model ledger_annotations {
+  user_id Int
+  transaction_id Int
+  category_id Int?
+  @@id([user_id,transaction_id])
+}
+model ledger_tag_assignments {
+  user_id Int
+  transaction_id Int
+  label_id Int
+  @@id([user_id,transaction_id,label_id])
+  @@index([user_id,label_id,transaction_id], map: "ledger_tag_filter_idx")
 }
 
 model tags {

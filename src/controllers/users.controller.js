@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const { Prisma } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 const { sendVerificationEmail } = require('../services/NodeMailer');
 const UsersModel = require('../models/Users.model');
@@ -11,10 +12,14 @@ module.exports = {
         try {
             const email = req.user.user.email;
             await require('../prisma/client').runTransaction(async (tx) => {
+                await tx.$queryRaw(Prisma.sql`SELECT id FROM users WHERE email = ${email} FOR UPDATE`);
+                const current = await tx.users.findFirst({ where: { email, archived: false }, select: { super_user: true } });
+                if (current?.super_user) { const error = new Error('Another administrator must remove your admin role before you can delete your account.'); error.status = 409; throw error; }
                 await UsersModel.softDeleteUserByEmail(email, tx);
             });
             return res.json({ message: 'User Deleted Successfully' });
         } catch (err) {
+            if (err.status === 409) return res.status(409).json({ error: err.message });
             logger.error('deleteUser error: %o', { requestId: rid, error: err });
             return res.status(500).send('Server Error');
         }
@@ -27,7 +32,7 @@ module.exports = {
             if (result.rows.length === 0) {
                 return res.status(404).json({ error: 'User not found' });
             }
-            return res.status(200).json(result.rows[0]);
+            return res.status(200).json({ ...result.rows[0], ...(req.impersonation ? { impersonation: req.impersonation } : {}) });
         } catch (err) {
             logger.error('getUserDetails error: %o', { requestId: rid, error: err });
             return res.status(500).json({ error: 'Server Error' });
@@ -93,7 +98,5 @@ module.exports = {
         }
     },
     //TODO
-    changePassword: async (req, res) => {
-        return res.status(501).json({ error: 'Not Implemented' });
-    }
+    changePassword: require('./security.controller').changePassword
 };

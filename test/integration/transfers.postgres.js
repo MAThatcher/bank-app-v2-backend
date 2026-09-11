@@ -24,6 +24,20 @@ CREATE TABLE users (
  archived BOOLEAN DEFAULT FALSE, create_date TIMESTAMP(6) DEFAULT NOW(), update_date TIMESTAMP(6) DEFAULT NOW(),
  super_user BOOLEAN DEFAULT FALSE, archived_email VARCHAR(255), verified BOOLEAN DEFAULT TRUE
 );
+CREATE TYPE token_type AS ENUM ('AccessToken', 'RefreshToken');
+CREATE TABLE audit_logs (
+ id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), action VARCHAR(255) NOT NULL,
+ details VARCHAR(2048), create_date TIMESTAMP(6) DEFAULT NOW()
+);
+CREATE TABLE sessions (
+ id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), ip_address VARCHAR(45) NOT NULL,
+ user_agent VARCHAR(512), valid BOOLEAN DEFAULT TRUE, expires_at TIMESTAMP(6) NOT NULL DEFAULT NOW(),
+ create_date TIMESTAMP(6) DEFAULT NOW(), update_date TIMESTAMP(6) DEFAULT NOW()
+);
+CREATE TABLE tokens (
+ id SERIAL PRIMARY KEY, value VARCHAR(1028) NOT NULL, type token_type DEFAULT 'AccessToken',
+ create_date TIMESTAMP(6) DEFAULT NOW(), expire_date TIMESTAMP(6) DEFAULT NOW(), user_id INTEGER NOT NULL REFERENCES users(id), valid BOOLEAN DEFAULT FALSE
+);
 CREATE TABLE accounts (
  id SERIAL PRIMARY KEY, name VARCHAR(255) DEFAULT 'Account', create_date TIMESTAMP(6) DEFAULT NOW(),
  update_date TIMESTAMP(6) DEFAULT NOW(), owner INTEGER NOT NULL REFERENCES users(id),
@@ -44,6 +58,11 @@ CREATE TABLE transactions (
  account_id INTEGER NOT NULL REFERENCES accounts(id), description VARCHAR(1020) NOT NULL,
  user_id INTEGER NOT NULL REFERENCES users(id), amount NUMERIC(13,2) NOT NULL,
  archived BOOLEAN DEFAULT FALSE, category VARCHAR(1020) NOT NULL
+);
+CREATE TABLE disputes (
+ id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), transaction_id INTEGER NOT NULL REFERENCES transactions(id),
+ status VARCHAR(255) DEFAULT 'Open', reason VARCHAR(1020) NOT NULL, details VARCHAR(2048), resolution VARCHAR(2048),
+ create_date TIMESTAMP(6) DEFAULT NOW(), update_date TIMESTAMP(6) DEFAULT NOW()
 );`;
 
 async function main() {
@@ -63,6 +82,14 @@ async function main() {
         const emailUpgrade = fs.readFileSync(path.resolve(__dirname, '../../prisma/sql/add-notification-email.sql'), 'utf8');
         await admin.query(emailUpgrade);
         await admin.query(emailUpgrade);
+        const preferencesUpgrade = fs.readFileSync(path.resolve(__dirname, '../../prisma/sql/add-preferences-disputes.sql'), 'utf8');
+        await admin.query(preferencesUpgrade);
+        await admin.query(preferencesUpgrade);
+        const impersonationUpgrade = fs.readFileSync(path.resolve(__dirname, '../../prisma/sql/add-impersonation.sql'), 'utf8');
+        await admin.query(impersonationUpgrade);
+        await admin.query(impersonationUpgrade);
+        const labelsUpgrade=fs.readFileSync(path.resolve(__dirname,'../../prisma/sql/add-ledger-labels.sql'),'utf8');
+        await admin.query(labelsUpgrade); await admin.query(labelsUpgrade);
 
         const url = new URL(process.env.DATABASE_URL);
         url.searchParams.set('schema', schema);
@@ -384,6 +411,322 @@ async function main() {
             await db.accounts.update({where:{id:vaultA.id},data:{archived:true}});
             const result=await archives.search(reader.id,{}); assert.equal(result.entries.length,2); assert.equal(result.totals.income,'5.00');
             assert.ok(!(await archives.exportCsv(reader.id,{})).includes('Archive A'));
+        });
+        const sessionService = require('../../src/services/SessionService');
+        const bcrypt = require('bcrypt');
+        adapter.users.findFirst = args => db.users.findFirst(args);
+        adapter.sessions = db.sessions;
+        adapter.tokens.findFirst = args => db.tokens.findFirst(args);
+        const citizen = await db.users.create({data:{email:'security-citizen@example.test',password:await bcrypt.hash('original-password',10),verified:true}});
+        let firstLogin,secondLogin;
+        await check('two logins create independent valid sessions with safe session metadata',async()=>{
+            firstLogin=await sessionService.login(citizen.email,'original-password',{ip:'127.0.0.1',agent:'Firefox/1 Windows'});
+            secondLogin=await sessionService.login(citizen.email,'original-password',{ip:'127.0.0.2',agent:'Chrome/1 Android'});
+            const a=await sessionService.authorize(firstLogin.accessToken),b=await sessionService.authorize(secondLogin.accessToken);
+            assert.notEqual(a.sid,b.sid);
+            const list=await sessionService.sessions(citizen.id,a.sid);assert.equal(list.length,2);assert.equal(list.filter(row=>row.current).length,1);
+            assert.ok(!JSON.stringify(list).includes('password'));assert.ok(!JSON.stringify(list).includes(firstLogin.refreshToken));
+            assert.equal(await db.notifications.count({where:{user_id:citizen.id,type:'security',email_status:'pending'}}),2);
+        });
+        await check('revocation blocks both access and refresh for only its target session',async()=>{
+            const a=await sessionService.authorize(firstLogin.accessToken),b=await sessionService.authorize(secondLogin.accessToken);
+            await sessionService.revoke(citizen.id,b.sid,a.sid);
+            await assert.rejects(sessionService.authorize(firstLogin.accessToken),{status:401});
+            await assert.rejects(sessionService.refresh(firstLogin.refreshToken),{status:401});
+            assert.equal((await sessionService.authorize(secondLogin.accessToken)).sid,b.sid);
+            const refreshed=await sessionService.refresh(secondLogin.refreshToken);assert.ok(refreshed.accessToken);
+        });
+        await check('current-password failures leave active sessions and the password intact',async()=>{
+            const b=await sessionService.authorize(secondLogin.accessToken);
+            await assert.rejects(sessionService.changePassword(citizen.id,b.sid,{currentPassword:'wrong-password',newPassword:'changed-password'}),{status:400});
+            assert.ok(await sessionService.authorize(secondLogin.accessToken));
+        });
+        await check('password changes revoke all sessions and reject the old password',async()=>{
+            const b=await sessionService.authorize(secondLogin.accessToken);
+            await sessionService.changePassword(citizen.id,b.sid,{currentPassword:'original-password',newPassword:'changed-password'});
+            await assert.rejects(sessionService.authorize(secondLogin.accessToken),{status:401});
+            await assert.rejects(sessionService.refresh(secondLogin.refreshToken),{status:401});
+            await assert.rejects(sessionService.login(citizen.email,'original-password'),{status:401});
+            assert.equal(await db.sessions.count({where:{user_id:citizen.id,valid:true}}),0);
+            assert.equal(await db.tokens.count({where:{user_id:citizen.id,valid:true}}),0);
+        });
+        await check('sign out others preserves the current session and ignores other users sessions',async()=>{
+            const current=await sessionService.login(citizen.email,'changed-password');
+            const other=await sessionService.login(citizen.email,'changed-password');
+            const c=await sessionService.authorize(current.accessToken);
+            const foreign=await db.sessions.create({data:{user_id:outsider.id,ip_address:'127.0.0.1',valid:true,expires_at:new Date(Date.now()+60000)}});
+            assert.equal((await sessionService.revoke(citizen.id,c.sid,foreign.id)).revoked,0);
+            await sessionService.revoke(citizen.id,c.sid,'others');
+            assert.ok(await sessionService.authorize(current.accessToken));await assert.rejects(sessionService.authorize(other.accessToken),{status:401});
+            assert.equal((await db.sessions.findUnique({where:{id:foreign.id}})).valid,true);
+        });
+        await check('reset links are single-use and cannot authorize API access',async()=>{
+            const resetUser=await db.users.findUnique({where:{id:citizen.id}});
+            const token=sessionService.resetToken(resetUser);
+            await assert.rejects(sessionService.authorize(token),{status:401});
+            await sessionService.resetPassword(token,'reset-password');
+            await assert.rejects(sessionService.resetPassword(token,'another-password'),{status:400});
+            assert.equal(await db.sessions.count({where:{user_id:citizen.id,valid:true}}),0);
+        });
+        await check('login rolls back its session and tokens when notification persistence fails',async()=>{
+            const beforeSessions=await db.sessions.count(),beforeTokens=await db.tokens.count();
+            adapter.runTransaction=(callback,options)=>run(tx=>callback(new Proxy(tx,{get(target,property){
+                if(property==='notifications')return {create:()=>{throw new Error('injected security alert failure');}};
+                const value=Reflect.get(target,property);return typeof value==='function'?value.bind(target):value;
+            }})),options);
+            try {await assert.rejects(sessionService.login(citizen.email,'reset-password'),/injected security alert failure/);}finally{adapter.runTransaction=run;}
+            assert.equal(await db.sessions.count(),beforeSessions);assert.equal(await db.tokens.count(),beforeTokens);
+        });
+        await check('expired sessions and archived users cannot continue using valid JWTs',async()=>{
+            const current=await sessionService.login(citizen.email,'reset-password');const c=await sessionService.authorize(current.accessToken);
+            await db.sessions.update({where:{id:c.sid},data:{expires_at:new Date(0)}});
+            await assert.rejects(sessionService.authorize(current.accessToken),{status:401});
+            await assert.rejects(sessionService.refresh(current.refreshToken),{status:401});
+            const last=await sessionService.login(citizen.email,'reset-password');
+            await db.users.update({where:{id:citizen.id},data:{archived:true}});
+            await assert.rejects(sessionService.authorize(last.accessToken),{status:401});
+        });
+        const prefs = require('../../src/services/PreferencesService');
+        const cases = require('../../src/services/DisputesService');
+        const notifications = require('../../src/models/Notifications.model');
+        for (const model of ['users', 'accounts', 'transactions', 'user_preferences', 'notifications', 'disputes', 'dispute_events']) adapter[model] = db[model];
+        const reporter = await db.users.create({ data: { email: 'reporter@example.test', password: 'test-only', verified: true } });
+        const reviewer = await db.users.create({ data: { email: 'reviewer@example.test', password: 'test-only', verified: true, super_user: true } });
+        const stranger = await db.users.create({ data: { email: 'stranger@example.test', password: 'test-only', verified: true } });
+        const vault = await db.accounts.create({ data: { owner: reporter.id, name: 'Cases vault', balance: '25.00' } });
+        await db.account_users.create({ data: { user_id: reporter.id, account_id: vault.id } });
+        const disputedEntry = await db.transactions.create({ data: { user_id: reporter.id, account_id: vault.id, description: 'Questioned entry', amount: '25.00', category: 'General' } });
+        await check('preference updates preserve the other group and remain user scoped', async () => {
+            const initial = await prefs.read(reporter.id); assert.equal(initial.notifications.security.email, true);
+            const dashboard = { order: [vault.id], hideBalances: true, defaultAccountId: vault.id, shortcuts: ['disputes', 'transfer'] };
+            await prefs.saveDashboard(reporter.id, dashboard);
+            const channels = prefs.defaults(); channels.transfer = { inApp: false, email: true };
+            await prefs.saveNotifications(reporter.id, channels);
+            assert.deepEqual((await prefs.read(reporter.id)).dashboard, dashboard);
+            assert.equal((await prefs.read(stranger.id)).dashboard.hideBalances, false);
+            await assert.rejects(prefs.saveDashboard(stranger.id, dashboard), e => e.status === 400);
+        });
+        await check('email-only and disabled alerts never enter the inbox or unread badge', async () => {
+            const created = (await notifications.createNotification('Email only', reporter.id, db, 'transfer')).rows[0];
+            assert.equal((await db.notifications.findUnique({ where: { id: created.id } })).email_status, 'pending');
+            assert.equal((await notifications.getNotificationById(reporter.id, created.id)).rows.length, 0);
+            assert.equal(await notifications.getUnreadCount(reporter.id), 0);
+            const settings = prefs.defaults(); settings.transfer = { inApp: false, email: false }; await prefs.saveNotifications(reporter.id, settings);
+            const disabled = (await notifications.createNotification('Neither channel', reporter.id, db, 'transfer')).rows[0];
+            assert.equal((await db.notifications.findUnique({ where: { id: disabled.id } })).email_status, 'disabled');
+        });
+        await check('disabling email skips already queued alerts at delivery time', async () => {
+            await db.notifications.updateMany({ where: { user_id: { not: reporter.id } }, data: { email_status: 'disabled' } });
+            let sends = 0;
+            await require('../../src/services/NotificationEmailWorker').createDispatcher({ db, send: async () => { sends++; } }).runOnce();
+            assert.equal(sends, 0);
+            assert.equal(await db.notifications.count({ where: { user_id: reporter.id, email_last_error: 'PREFERENCE_DISABLED' } }), 1);
+        });
+        let caseRow;
+        await check('concurrent duplicate case submissions produce one case, event and alert', async () => {
+            const result = await Promise.all([cases.create(reporter.id, disputedEntry.id, { reason: 'Unrecognized entry' }), cases.create(reporter.id, disputedEntry.id, { reason: 'Unrecognized entry' })]);
+            caseRow = result[0]; assert.equal(result[0].id, result[1].id);
+            assert.equal(await db.dispute_events.count({ where: { dispute_id: caseRow.id } }), 1);
+            assert.equal(await db.notifications.count({ where: { user_id: reporter.id, type: 'dispute' } }), 1);
+            assert.equal(await balance(vault.id), '25.00');
+        });
+        await check('outsiders cannot file, read, list for review or resolve cases', async () => {
+            await assert.rejects(cases.create(stranger.id, disputedEntry.id, { reason: 'Foreign account' }), e => e.status === 404);
+            await assert.rejects(cases.detail(stranger.id, caseRow.id), e => e.status === 404);
+            assert.equal((await cases.list(stranger.id)).items.length, 0);
+            await assert.rejects(cases.list(stranger.id, { scope: 'review' }), e => e.status === 403);
+            await assert.rejects(cases.update(stranger.id, caseRow.id, { expectedStatus: 'Open', status: 'Resolved', note: 'Unauthorized decision' }), e => e.status === 404);
+        });
+        await check('reporters cannot resolve their own case even when promoted to administrator', async () => {
+            await db.users.update({ where: { id: reporter.id }, data: { super_user: true } });
+            await assert.rejects(cases.update(reporter.id, caseRow.id, { expectedStatus: 'Open', status: 'Resolved', note: 'Self-approved' }), e => e.status === 403);
+            await db.users.update({ where: { id: reporter.id }, data: { super_user: false } });
+        });
+        await check('administrator review records decisions and rejects stale updates without moving money', async () => {
+            await cases.update(reviewer.id, caseRow.id, { expectedStatus: 'Open', status: 'UnderReview', note: 'Review has begun' });
+            await assert.rejects(cases.update(reviewer.id, caseRow.id, { expectedStatus: 'Open', status: 'Resolved', note: 'Stale decision' }), e => e.status === 409);
+            await cases.update(reviewer.id, caseRow.id, { expectedStatus: 'UnderReview', status: 'Resolved', note: 'Entry verified with reporter' });
+            const result = await cases.detail(reporter.id, caseRow.id); assert.equal(result.events.length, 3); assert.equal(result.resolution, 'Entry verified with reporter'); assert.equal(result.canWithdraw, false);
+            assert.equal(await balance(vault.id), '25.00');
+            await assert.rejects(cases.update(reviewer.id, caseRow.id, { expectedStatus: 'Resolved', status: 'Rejected', note: 'Change a final decision' }), e => e.status === 409);
+        });
+        await check('reporters can withdraw an active case with retained history', async () => {
+            const row = await cases.create(reporter.id, disputedEntry.id, { reason: 'Clarification requested' });
+            await cases.update(reporter.id, row.id, { expectedStatus: 'Open', status: 'Withdrawn', note: 'Question answered by owner' });
+            assert.equal((await cases.detail(reporter.id, row.id)).events.length, 2);
+        });
+        await check('notification persistence failure rolls back the case and its history', async () => {
+            adapter.runTransaction = (callback, options) => run(tx => callback(new Proxy(tx, { get(target, property) {
+                if (property === 'notifications') return { create: async () => { throw new Error('injected case alert failure'); } };
+                return target[property];
+            } })), options);
+            const count = await db.disputes.count();
+            try { await assert.rejects(cases.create(reporter.id, disputedEntry.id, { reason: 'Rollback this case' }), /injected case alert failure/); }
+            finally { adapter.runTransaction = run; }
+            assert.equal(await db.disputes.count(), count);
+        });
+        await check('revoked vault membership prevents new cases but retains the reporter case history', async () => {
+            await db.account_users.updateMany({ where: { user_id: reporter.id, account_id: vault.id }, data: { archived: true } });
+            await assert.rejects(cases.create(reporter.id, disputedEntry.id, { reason: 'Access has been revoked' }), e => e.status === 404);
+            assert.equal((await cases.detail(reporter.id, caseRow.id)).status, 'Resolved');
+        });
+        const adminService = require('../../src/services/AdminService');
+        adapter.audit_logs = db.audit_logs;
+        await check('admin overview and directories exclude credentials and enforce database roles', async () => {
+            const overview = await adminService.overview(reviewer.id); assert.ok(overview.users >= 3);
+            const directory = await adminService.users(reviewer.id, { q: reporter.email }); assert.equal(directory.items.length, 1); assert.equal(directory.items[0].id, reporter.id); assert.equal('password' in directory.items[0], false);
+            await assert.rejects(adminService.overview(reporter.id), e => e.status === 403);
+            assert.ok((await adminService.vaults(reviewer.id, { q: 'Cases vault' })).items.some(row => row.id === vault.id));
+            assert.equal((await cases.detail(reviewer.id, caseRow.id)).transaction.id, disputedEntry.id);
+            assert.equal('transaction' in (await cases.detail(reporter.id, caseRow.id)), false);
+        });
+        await check('granting an admin role revokes the target sessions and records an audit event', async () => {
+            await db.sessions.create({ data: { user_id: stranger.id, ip_address: '127.0.0.1', valid: true, expires_at: new Date(Date.now() + 60000) } });
+            await adminService.role(reviewer.id, stranger.id, { expectedRole: false, super_user: true, reason: 'Support coverage' });
+            assert.equal((await db.users.findUnique({ where: { id: stranger.id } })).super_user, true);
+            assert.equal(await db.sessions.count({ where: { user_id: stranger.id, valid: true } }), 0);
+            assert.equal(await db.audit_logs.count({ where: { user_id: reviewer.id, action: 'ADMIN_ROLE_CHANGED' } }), 1);
+        });
+        await check('admin action audit failure rolls back the role change', async () => {
+            adapter.runTransaction = (callback, options) => run(tx => callback(new Proxy(tx, { get(target, property) {
+                if (property === 'audit_logs') return { create: async () => { throw new Error('injected admin audit failure'); } }; return target[property];
+            } })), options);
+            try { await assert.rejects(adminService.role(reviewer.id, reporter.id, { expectedRole: false, super_user: true, reason: 'Rollback role test' }), /injected admin audit failure/); }
+            finally { adapter.runTransaction = run; }
+            assert.equal((await db.users.findUnique({ where: { id: reporter.id } })).super_user, false);
+        });
+        await check('self demotion is rejected and concurrent mutual demotions preserve an administrator', async () => {
+            await assert.rejects(adminService.role(reviewer.id, reviewer.id, { expectedRole: true, super_user: false, reason: 'Remove myself' }), e => e.status === 409);
+            const results = await Promise.allSettled([
+                adminService.role(reviewer.id, stranger.id, { expectedRole: true, super_user: false, reason: 'Remove second admin' }),
+                adminService.role(stranger.id, reviewer.id, { expectedRole: true, super_user: false, reason: 'Remove first admin' }),
+            ]);
+            assert.equal(results.filter(row => row.status === 'fulfilled').length, 1);
+            assert.equal(await db.users.count({ where: { id: { in: [reviewer.id, stranger.id] }, super_user: true } }), 1);
+        });
+        await check('demoted administrators immediately lose admin service access', async () => {
+            const demoted = await db.users.findFirst({ where: { id: { in: [reviewer.id, stranger.id] }, super_user: false } });
+            await assert.rejects(adminService.users(demoted.id), e => e.status === 403);
+        });
+        await check('session revocations and dispute decisions appear in the administrator audit trail', async () => {
+            const remaining = await db.users.findFirst({ where: { id: { in: [reviewer.id, stranger.id] }, super_user: true } });
+            await adminService.revoke(remaining.id, reporter.id, { reason: 'Reported lost browser session' });
+            const trail = await adminService.audit(remaining.id);
+            assert.ok(trail.items.some(row => row.action === 'ADMIN_SESSIONS_REVOKED'));
+            assert.ok(trail.items.some(row => row.action === 'ADMIN_DISPUTE_UPDATED'));
+        });
+        const impersonation = require('../../src/services/ImpersonationService');
+        adapter.impersonations = db.impersonations;
+        const supportAdmin = await db.users.create({ data: { email: 'support-admin@example.test', password: await require('bcrypt').hash('support-password', 10), super_user: true, verified: true } });
+        const supportUser = await db.users.create({ data: { email: 'support-user@example.test', password: 'test-only', super_user: false, verified: true } });
+        const adminLogin = await sessionService.login(supportAdmin.email, 'support-password');
+        const adminIdentity = await sessionService.authorize(adminLogin.accessToken);
+        let supportContext;
+        await check('support context uses member identity with no new member tokens or sessions', async () => {
+            supportContext = await impersonation.start(supportAdmin.id, adminIdentity.sid, supportUser.id, { reason: 'Investigate reported dashboard issue' });
+            assert.equal((await impersonation.resolve(adminIdentity, supportContext.id)).user.id, supportUser.id);
+            assert.equal(await db.sessions.count({ where: { user_id: supportUser.id } }), 0);
+            assert.equal(await db.tokens.count({ where: { user_id: supportUser.id } }), 0);
+        });
+        await check('impersonation cannot be reused from another session or administrator', async () => {
+            await assert.rejects(impersonation.resolve({ ...adminIdentity, sid: adminIdentity.sid + 1 }, supportContext.id), e => e.code === 'IMPERSONATION_INVALID');
+            await assert.rejects(impersonation.resolve({ ...adminIdentity, user: { id: supportUser.id, super_user: true } }, supportContext.id), e => e.code === 'IMPERSONATION_INVALID');
+            await assert.rejects(impersonation.stop(supportUser.id, adminIdentity.sid, supportContext.id), e => e.status === 404);
+        });
+        await check('read-only support access blocks financial and credential routes over HTTP', async () => {
+            const app = require('express')(); const auth = require('../../src/services/AuthService').authenticateToken;
+            app.use(require('../../src/middleware/impersonationReadOnly'));
+            app.get('/api/account', auth, (req, res) => res.json({ userId: req.user.user.id }));
+            app.post('/api/transaction/transfer', auth, (req, res) => res.json({ error: 'should never execute' }));
+            const http = require('supertest');
+            const view = await http(app).get('/api/account').set('Authorization', 'Bearer ' + adminLogin.accessToken).set('X-Impersonation-Id', supportContext.id); assert.equal(view.status, 200); assert.equal(view.body.userId, supportUser.id);
+            for (const route of ['/api/transaction/transfer', '/api/users/change-password', '/api/auth/reset-password', '/api/users']) {
+                const denied = await http(app).post(route).set('Authorization', 'Bearer ' + adminLogin.accessToken).set('X-Impersonation-Id', supportContext.id); assert.equal(denied.status, 403);
+            }
+        });
+        await check('ending impersonation is idempotent and preserves admin login', async () => {
+            await impersonation.stop(supportAdmin.id, adminIdentity.sid, supportContext.id);
+            await impersonation.stop(supportAdmin.id, adminIdentity.sid, supportContext.id);
+            await assert.rejects(impersonation.resolve(adminIdentity, supportContext.id), e => e.code === 'IMPERSONATION_INVALID');
+            assert.equal((await sessionService.authorize(adminLogin.accessToken)).user.id, supportAdmin.id);
+            assert.equal(await db.audit_logs.count({ where: { user_id: supportAdmin.id, action: 'ADMIN_IMPERSONATION_ENDED' } }), 1);
+        });
+        await check('expired or promoted target contexts cannot authorize support access', async () => {
+            const context = await impersonation.start(supportAdmin.id, adminIdentity.sid, supportUser.id, { reason: 'Check support expiry' });
+            await db.impersonations.update({ where: { id: context.id }, data: { expires_at: new Date(Date.now() - 1000) } });
+            await assert.rejects(impersonation.resolve(adminIdentity, context.id), e => e.code === 'IMPERSONATION_INVALID');
+            const promoted = await impersonation.start(supportAdmin.id, adminIdentity.sid, supportUser.id, { reason: 'Check target role changes' });
+            await db.users.update({ where: { id: supportUser.id }, data: { super_user: true } });
+            await assert.rejects(impersonation.resolve(adminIdentity, promoted.id), e => e.code === 'IMPERSONATION_INVALID');
+            await assert.rejects(impersonation.start(supportAdmin.id, adminIdentity.sid, supportUser.id, { reason: 'Admin target forbidden' }), e => e.status === 400);
+        });
+        await check('parent session revocation rejects the token needed for support access', async () => {
+            await sessionService.revoke(supportAdmin.id, adminIdentity.sid, adminIdentity.sid);
+            await assert.rejects(sessionService.authorize(adminLogin.accessToken), e => e.status === 401);
+            await assert.rejects(impersonation.start(supportAdmin.id, adminIdentity.sid, reporter.id, { reason: 'Revoked parent rejected' }), e => e.status === 401);
+        });
+        const labelsService=require('../../src/services/LedgerLabelsService');
+        const archivesService=require('../../src/services/LedgerArchivesService');
+        const labelOwner=await db.users.create({data:{email:'labels-owner@example.test',password:'fixture',verified:true}});
+        const labelMember=await db.users.create({data:{email:'labels-member@example.test',password:'fixture',verified:true}});
+        const labeledVault=await db.accounts.create({data:{owner:labelOwner.id,name:'Classification vault',balance:'100.00'}});
+        for(const person of [labelOwner,labelMember]) await db.account_users.create({data:{user_id:person.id,account_id:labeledVault.id}});
+        const labeledEntries=await Promise.all(['-0.01','-0.02'].map(amount=>db.transactions.create({data:{user_id:labelOwner.id,account_id:labeledVault.id,amount,description:'Classification fixture',category:'Original'}})));
+        const categoryLabel=await labelsService.save(labelOwner.id,'category',{name:'Supplies',color:'#ccaa55'});
+        const tagLabel=await labelsService.save(labelOwner.id,'tag',{name:'Campaign',color:'#33aa88'});
+        const memberLabel=await labelsService.save(labelMember.id,'category',{name:'Private category',color:'#445566'});
+        const entryIds=labeledEntries.map(row=>row.id);
+        await check('label catalogs are private and reject case-insensitive duplicate names',async()=>{
+            assert.equal((await labelsService.list(labelMember.id)).length,1);
+            await assert.rejects(labelsService.save(labelOwner.id,'category',{name:' supplies ',color:'#ffffff'}),e=>e.status===409);
+            await assert.rejects(labelsService.archive(labelMember.id,'category',categoryLabel.id),e=>e.status===404);
+        });
+        await check('bulk labels update personal views, exact category totals, tags and CSV without moving money',async()=>{
+            await labelsService.assign(labelOwner.id,{transactionIds:entryIds,categoryId:categoryLabel.id,addTagIds:[tagLabel.id]});
+            const report=await archivesService.search(labelOwner.id,{categoryId:String(categoryLabel.id),tagId:String(tagLabel.id)});
+            assert.equal(report.entries.length,2);assert.equal(report.categories[0].category,'Supplies');assert.equal(report.categories[0].spending,'0.03');assert.equal(report.entries[0].tags[0].name,'Campaign');
+            const other=await archivesService.search(labelMember.id,{});assert.equal(other.entries[0].category,'Original');assert.deepEqual(other.entries[0].tags,[]);
+            assert.equal((await archivesService.search(labelMember.id,{tagId:String(tagLabel.id)})).entries.length,0);
+            assert.ok((await archivesService.exportCsv(labelOwner.id,{})).includes('Campaign'));assert.equal(await balance(labeledVault.id),'100.00');
+            const decorated=await labelsService.decorate(labelOwner.id,labeledEntries);assert.equal(decorated[0].category,'Supplies');assert.equal(decorated[0].tags.length,1);
+        });
+        await check('renaming a label updates historic reports and archived labels retain history',async()=>{
+            await labelsService.save(labelOwner.id,'category',{name:'Requisitions',color:'#abcdef'},categoryLabel.id);
+            await labelsService.archive(labelOwner.id,'category',categoryLabel.id);await labelsService.archive(labelOwner.id,'tag',tagLabel.id);
+            const report=await archivesService.search(labelOwner.id,{categoryId:String(categoryLabel.id)});assert.equal(report.categories[0].category,'Requisitions');assert.equal(report.entries[0].tags[0].archived,true);
+            await assert.rejects(labelsService.assign(labelOwner.id,{transactionIds:entryIds,categoryId:categoryLabel.id}),e=>e.status===400);
+            await assert.rejects(labelsService.assign(labelOwner.id,{transactionIds:entryIds,addTagIds:[tagLabel.id]}),e=>e.status===400);
+            await labelsService.save(labelOwner.id,'category',{name:'Requisitions',color:'#abcdef',archived:false},categoryLabel.id);
+            await labelsService.save(labelOwner.id,'tag',{name:'Campaign',color:'#33aa88',archived:false},tagLabel.id);
+        });
+        await check('foreign labels and mismatched category/tag types cannot be assigned',async()=>{
+            await assert.rejects(labelsService.assign(labelOwner.id,{transactionIds:entryIds,categoryId:memberLabel.id}),e=>e.status===400);
+            await assert.rejects(labelsService.assign(labelOwner.id,{transactionIds:entryIds,categoryId:tagLabel.id}),e=>e.status===400);
+            await assert.rejects(labelsService.assign(labelOwner.id,{transactionIds:entryIds,addTagIds:[categoryLabel.id]}),e=>e.status===400);
+        });
+        await check('bulk requests containing an inaccessible transaction roll back entirely',async()=>{
+            await assert.rejects(labelsService.assign(labelOwner.id,{transactionIds:[entryIds[0],disputedEntry.id],categoryId:null}),e=>e.status===404);
+            assert.equal((await archivesService.search(labelOwner.id,{})).entries.find(row=>row.id===entryIds[0]).category,'Requisitions');
+        });
+        await check('repeated tag assignment is idempotent and archived tags can be removed',async()=>{
+            await labelsService.assign(labelOwner.id,{transactionIds:entryIds,addTagIds:[tagLabel.id]});
+            assert.equal((await archivesService.search(labelOwner.id,{})).entries[0].tags.length,1);
+            await labelsService.archive(labelOwner.id,'tag',tagLabel.id);
+            await labelsService.assign(labelOwner.id,{transactionIds:entryIds,categoryId:null,removeTagIds:[tagLabel.id]});
+            const rows=(await archivesService.search(labelOwner.id,{})).entries;assert.equal(rows[0].category,'Original');assert.deepEqual(rows[0].tags,[]);
+        });
+        await check('new transaction custom category assignment commits with its balance update',async()=>{
+            adapter.account_users=db.account_users;adapter.accounts=db.accounts;adapter.transactions=db.transactions;
+            let httpStatus=200;const response={status(value){httpStatus=value;return this;},json(value){this.body=value;return this;}};
+            await require('../../src/controllers/transactions.controller').createTransaction({user:{user:{id:labelOwner.id}},body:{transactionAmount:'-2.00',accountId:labeledVault.id,description:'Custom categorized new entry',category:'Ignored client name',categoryId:categoryLabel.id}},response);
+            assert.equal(httpStatus,201);assert.equal(await balance(labeledVault.id),'98.00');
+            const report=await archivesService.search(labelOwner.id,{categoryId:String(categoryLabel.id)});assert.equal(report.entries[0].description,'Custom categorized new entry');assert.equal(report.categories[0].spending,'2.00');
+            await require('../../src/controllers/transactions.controller').createTransaction({user:{user:{id:labelOwner.id}},body:{transactionAmount:'-2.00',accountId:labeledVault.id,description:'Foreign category attempt',category:'Bad',categoryId:memberLabel.id}},response);
+            assert.equal(httpStatus,400);assert.equal(await balance(labeledVault.id),'98.00');
+        });
+        await check('revoked vault access blocks new label assignments',async()=>{
+            await db.account_users.updateMany({where:{user_id:labelOwner.id,account_id:labeledVault.id},data:{archived:true}});
+            await assert.rejects(labelsService.assign(labelOwner.id,{transactionIds:entryIds,categoryId:categoryLabel.id}),e=>e.status===404);
         });
         console.log(passed + ' PostgreSQL checks passed. Application records were untouched.');
     } finally {

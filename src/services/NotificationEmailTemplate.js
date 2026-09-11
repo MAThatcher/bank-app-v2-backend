@@ -7,7 +7,7 @@ function inboxUrl(env) {
     return url.toString();
 }
 function notificationMail(email, notification, env) {
-    const title = notification.type === 'transfer' ? 'Transfer confirmed' : 'Vault access updated';
+    const title = ({ transfer: 'Transfer confirmed', security: 'Account security alert', membership: 'Vault access updated', dispute: 'Dispute updated' })[notification.type] || 'Imperial dispatch';
     const link = inboxUrl(env);
     return {
         from: env.EMAIL_USER,

@@ -1,0 +1,10 @@
+const request = require('supertest');
+const express = require('express');
+const db = require('../../src/prisma/client');
+jest.mock('../../src/services/AuthService', () => ({ authenticateToken(req, res, next) { if (!req.get('x-test-user')) return res.status(401).json({ error: 'Sign in' }); req.user = { user: { id: 7, super_user: true } }; next(); } }));
+const app = express(); app.use(express.json()); app.use('/api/admin', require('../../src/views/admin.routes'));
+afterEach(() => jest.restoreAllMocks());
+test.each(['/overview', '/users', '/vaults', '/audit'])('admin route %s requires authentication', async path => { expect((await request(app).get('/api/admin' + path)).status).toBe(401); });
+test.each(['/overview', '/users', '/vaults', '/audit'])('client role claims cannot authorize %s', async path => { jest.spyOn(db.users, 'findFirst').mockResolvedValue(null); expect((await request(app).get('/api/admin' + path).set('x-test-user', '7')).status).toBe(403); });
+test('an authorized directory response is not cacheable and excludes secret fields', async () => { jest.spyOn(db.users, 'findFirst').mockResolvedValue({ id: 7 }); jest.spyOn(db.users, 'findMany').mockResolvedValue([]); const result = await request(app).get('/api/admin/users').set('x-test-user', '7'); expect(result.status).toBe(200); expect(result.headers['cache-control']).toBe('no-store'); expect(result.body).toEqual({ items: [], next: null }); });
+test('role mutation is forbidden to nonadmins', async () => { jest.spyOn(db.users, 'findFirst').mockResolvedValue(null); expect((await request(app).patch('/api/admin/users/8/role').set('x-test-user', '7').send({ super_user: true, expectedRole: false, reason: 'Forged admin' })).status).toBe(403); });

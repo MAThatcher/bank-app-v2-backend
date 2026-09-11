@@ -8,6 +8,11 @@
     "test:transfers:db": "node test/integration/transfers.postgres.js",
     "db:enable-transfers": "node scripts/apply-transfer-schema.js",
     "db:enable-notification-email": "node scripts/apply-notification-email-schema.js",
+    "db:enable-security-sessions": "node scripts/apply-security-session-schema.js",
+    "db:enable-preferences-disputes": "node scripts/apply-preferences-disputes-schema.js",
+    "admin:bootstrap": "node scripts/bootstrap-admin.js",
+    "db:enable-ledger-labels": "node scripts/apply-ledger-labels-schema.js",
+    "db:enable-impersonation": "node scripts/apply-impersonation-schema.js",
     "prisma:generate": "node scripts/prisma-runner.js generate",
     "prisma:introspect": "node scripts/prisma-runner.js db pull",
     "prisma:migrate": "node scripts/prisma-runner.js migrate dev"

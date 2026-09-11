@@ -10,7 +10,7 @@ beforeEach(() => {
   users: { findMany: jest.fn().mockResolvedValue([{ id: 8 }]) },
   account_users: { findMany: jest.fn().mockResolvedValue([{ users: { id: 7, email: 'owner@test.example', verified: true } }, { users: { id: 8, email: 'member@test.example', verified: true } }]), findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
   transactions: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
-  notifications: { create: jest.fn().mockResolvedValue({}) },
+  user_preferences: { findUnique: jest.fn().mockResolvedValue(null) }, notifications: { create: jest.fn().mockResolvedValue({}) },
  };
  jest.spyOn(prisma, 'runTransaction').mockImplementation(cb => cb(tx));
 });

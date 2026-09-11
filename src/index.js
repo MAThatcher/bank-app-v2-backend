@@ -20,6 +20,7 @@ app.use(cors({
 }));
 
 app.use(requestId);
+app.use(require('./middleware/impersonationReadOnly'));
 
 morgan.token('id', function getId(req) { return req.requestId; });
 app.use(morgan(':id :remote-addr - :method :url :status :response-time ms', { stream: { write: (message) => logger.info(message.trim()) } }));
@@ -38,6 +39,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/account", accountRoutes);
 app.use("/api/transaction", transactionRoutes);
 app.use("/api/notification", notificationRoutes);
+app.use('/api/admin', require('./views/admin.routes'));
+app.use('/api/impersonation', require('./views/impersonation.routes'));
 
 app.get("/", (req, res) => {
   res.send("API is running...");

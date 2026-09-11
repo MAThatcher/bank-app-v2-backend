@@ -45,8 +45,13 @@ function createDispatcher({ db, send, now = () => new Date() }) {
                     const user = await db.users.findFirst({
                         where: { id: notification.user_id, archived: false, verified: true }, select: { email: true },
                     });
-                    if (!user?.email || !['transfer', 'membership'].includes(notification.type)) {
+                    if (!user?.email || !['transfer', 'membership', 'security', 'dispute', 'general'].includes(notification.type)) {
                         await finish({ email_status: 'skipped', email_last_error: 'INELIGIBLE_RECIPIENT' });
+                        continue;
+                    }
+                    const channels = await require('./PreferencesService').channels(notification.user_id, notification.type, db);
+                    if (!channels.email) {
+                        await finish({ email_status: 'skipped', email_last_error: 'PREFERENCE_DISABLED' });
                         continue;
                     }
                     await send(user.email, notification);
