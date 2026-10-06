@@ -59,12 +59,12 @@ module.exports = {
                 let customCategory;
                 if (categoryId !== undefined) {
                     if (!Number.isInteger(categoryId) || categoryId <= 0 || categoryId > 2147483647) { const error=new Error('Invalid custom category.');error.status=400;throw error; }
-                    await tx.$queryRaw(Prisma.sql`SELECT id FROM users WHERE id=${userId} FOR NO KEY UPDATE`);
-                    const labels=await tx.$queryRaw(Prisma.sql`SELECT id,name FROM ledger_labels WHERE id=${categoryId} AND user_id=${userId} AND kind='category' AND archived=false`);
+                    await tx.$queryRaw`SELECT id FROM users WHERE id=${userId} FOR NO KEY UPDATE`;
+                    const labels=await tx.$queryRaw`SELECT id,name FROM ledger_labels WHERE id=${categoryId} AND user_id=${userId} AND kind='category' AND archived=false`;
                     customCategory=labels[0];
                     if(!customCategory){const error=new Error('Choose an active category from your register.');error.status=400;throw error;}
                 }
-                await tx.$queryRaw(Prisma.sql`SELECT id FROM accounts WHERE id = ${Number(accountId)} FOR UPDATE`);
+                await tx.$queryRaw`SELECT id FROM accounts WHERE id = ${Number(accountId)} FOR UPDATE`;
                 const currentAccess = await TransactionsModel.checkUserAccountAccess(userId, accountId, tx);
                 if (!currentAccess.rows.length) {
                     const error = new Error('Vault access has been removed.');
@@ -78,7 +78,7 @@ module.exports = {
                     throw error;
                 }
                 const inserted=await TransactionsModel.insertTransaction(amount, userId, accountId, description, customCategory?.name || category, tx);
-                if(customCategory) await tx.$queryRaw(Prisma.sql`INSERT INTO ledger_annotations(user_id,transaction_id,category_id) VALUES(${userId},${inserted.rows[0].id},${customCategory.id}) RETURNING transaction_id`);
+                if(customCategory) await tx.$queryRaw`INSERT INTO ledger_annotations(user_id,transaction_id,category_id) VALUES(${userId},${inserted.rows[0].id},${customCategory.id}) RETURNING transaction_id`;
             });
             return res.status(201).json({ message: 'Transaction Logged successfully' });
         } catch (error) {
